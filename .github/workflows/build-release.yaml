@@ -1,4 +1,4 @@
-name: build-release
+name: Build Release
 
 on:
   workflow_dispatch:
@@ -58,14 +58,14 @@ jobs:
     steps:
       - name: Load secrets
         id: op-load-secret
-        uses: 1password/load-secrets-action@13f58eec611f8e5db52ec16247f58c508398f3e6 # v3.0.0
+        uses: bitwarden/sm-action@v2
         with:
+          access_token: ${{ secrets.BW_ACCESS_TOKEN }}
           export-env: false
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_PUBLIC }}
-          UNITY_EMAIL: "op://${{ vars.OP_VAULT_ACTIONS_PUBLIC }}/UNITY_LICENSE/username"
-          UNITY_PASSWORD: "op://${{ vars.OP_VAULT_ACTIONS_PUBLIC }}/UNITY_LICENSE/credential"
-          UNITY_SERIAL: "op://${{ vars.OP_VAULT_ACTIONS_PUBLIC }}/UNITY_LICENSE/serial"
+          secrets: |
+            48bb0bdd-09e5-40f6-972b-b39e01509a5d > UNITY_EMAIL
+            0de0e0c9-cff8-4658-86de-b39e0150b51b > UNITY_PASSWORD
+            33f4f5b8-01f0-48ef-b8e2-b39e0151811b > UNITY_SERIAL
 
       - run: echo ${{ needs.update-packagejson.outputs.sha }}
       - uses: Cysharp/Actions/.github/actions/checkout@main
