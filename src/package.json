@@ -1,0 +1,15 @@
+{
+    "name": "com.meowtron.nanoprofiler",
+    "displayName": "NanoProfiler",
+    "author": { "name": "Meowtron Ltd", "url": "https://github.com/bandures" },
+    "version": "0.1.0",
+    "unity": "2022.3",
+    "description": "The NanoProfiler package provides an API for release mode profiling and exporting collected data into Perfetto data stream.",
+    "keywords": [
+        "profiler",
+        "profiling"
+    ],
+    "license": "MIT",
+    "category": "Performance",
+    "dependencies": {}
+}

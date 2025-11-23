@@ -1,0 +1,48 @@
+<Project>
+
+    <PropertyGroup>
+        <!--
+        Changing NuGet restore output path. This needs to be set before Sdk.props.
+        https://stackoverflow.com/a/45589468
+        -->
+        <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts~\obj\$(Configuration)</BaseIntermediateOutputPath>
+        <Nullable>annotations</Nullable>
+    </PropertyGroup>
+    <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+    <PropertyGroup>
+        <RootNamespace>Meowtron.NanoProfiler.Tests</RootNamespace>
+        <TargetFramework>net8.0</TargetFramework>
+        <DefaultItemExcludes>artifacts~\**;**\*.meta;**\*.asmdef;</DefaultItemExcludes>
+        <OutputPath>$(MSBuildThisFileDirectory)artifacts~\bin\$(Configuration)\</OutputPath>
+        <IntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts~\obj\$(Configuration)</IntermediateOutputPath>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\NanoProfiler.NetCore\NanoProfiler.NetCore.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
+      <PackageReference Include="BenchmarkDotNet.Diagnostics.dotTrace" Version="0.14.0" />
+      <PackageReference Include="NUnit" Version="3.13.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="artifacts~\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="artifacts~\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="artifacts~\**" />
+    </ItemGroup>
+
+    <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+</Project>

@@ -1,0 +1,54 @@
+﻿<Project>
+
+    <PropertyGroup>
+        <!--
+        Changing NuGet restore output path. This needs to be set before Sdk.props.
+        https://stackoverflow.com/a/45589468
+        -->
+        <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts~\obj\$(Configuration)</BaseIntermediateOutputPath>
+    </PropertyGroup>
+
+    <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+    <PropertyGroup>
+        <PackageId>NanoProfiler.Tests</PackageId>
+        <RootNamespace>Meowtron.NanoProfiler.Tests</RootNamespace>
+        <LangVersion>11</LangVersion>
+        <Nullable>annotations</Nullable>
+        <DefaultItemExcludes>artifacts~\**;**\*.meta;**\*.asmdef;</DefaultItemExcludes>
+        <OutputPath>$(MSBuildThisFileDirectory)artifacts~\bin\$(Configuration)\</OutputPath>
+        <IntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts~\obj\$(Configuration)</IntermediateOutputPath>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <OutputType>Library</OutputType>
+        <IsPackable>false</IsPackable>
+        <TargetFramework>net8.0</TargetFramework>
+        <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\NanoProfiler.NetCore\NanoProfiler.NetCore.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+      <PackageReference Include="NUnit" Version="3.13.3" />
+      <PackageReference Include="NUnit3TestAdapter" Version="3.13.0" />
+      <PackageReference Include="JunitXml.TestLogger" Version="5.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="artifacts~\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="artifacts~\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="artifacts~\**" />
+    </ItemGroup>
+
+    <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+</Project>

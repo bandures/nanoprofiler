@@ -1,0 +1,23 @@
+{
+    "name": "NanoProfiler.Runtime.Perfetto",
+    "rootNamespace": "",
+    "references": [
+        "NanoProfiler.Runtime",
+        ""
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Microsoft.Extensions.Logging.Abstractions.dll",
+        "Google.Protobuf.dll",
+        ""
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "NANOPROFILER_PERFETTO_SUPPORT"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
