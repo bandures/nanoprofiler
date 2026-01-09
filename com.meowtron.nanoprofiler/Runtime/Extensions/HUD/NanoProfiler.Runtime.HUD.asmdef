@@ -1,0 +1,22 @@
+{
+    "name": "NanoProfiler.Runtime.HUD",
+    "rootNamespace": "",
+    "references": [
+        "NanoProfiler.Runtime",
+        "Unity.Mathematics",
+        "Unity.Collections",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "NANOPROFILER_HUD_SUPPORT"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

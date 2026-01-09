@@ -28,7 +28,7 @@
     <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk"/>
 
     <ItemGroup>
-        <Compile Include="..\..\src\Runtime\**\*.cs" />
+        <Compile Include="..\..\com.meowtron.nanoprofiler\Runtime\**\*.cs" />
     </ItemGroup>
 
     <ItemGroup>
