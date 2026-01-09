@@ -1,7 +1,7 @@
 #if !NANO_PROFILER_UNITY_INTEGRATION
 using System.Diagnostics;
 
-namespace Meowtron.Profiler
+namespace NanoProfiler
 {
     public partial struct Scope
     {

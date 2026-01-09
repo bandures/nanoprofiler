@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using NanoProfiler;
 using NUnit.Framework;
 using Meowtron.NanoProfiler.Tests.Helpers;
 
@@ -13,11 +14,11 @@ namespace Meowtron.NanoProfiler.Tests
         public static void NanoScope_CreatedBeforeProfilerStarted_InfoReceived()
         {
             var testProcessor = new MarkerTestProcessor();
-            var settings = new NanoProfilerSettingsBuilder()
+            var settings = new ProfilerSettingsBuilder()
                 .AddProcessor(_ => testProcessor)
                 .Build();
             
-            using var profiler = new NanoProfiler(settings);
+            using var profiler = new Profiler(settings);
             
             var markerName = MakeUniqueScopeName();
             _ = profiler.CreateScope(markerName);
@@ -33,11 +34,11 @@ namespace Meowtron.NanoProfiler.Tests
         public static void NanoScope_CreatedAfterProfilerStarted_InfoReceived()
         {
             var testProcessor = new MarkerTestProcessor();
-            var settings = new NanoProfilerSettingsBuilder()
+            var settings = new ProfilerSettingsBuilder()
                 .AddProcessor(_ => testProcessor)
                 .Build();
             
-            using var profiler = new NanoProfiler(settings);
+            using var profiler = new Profiler(settings);
             
             profiler.Start();
             
@@ -59,13 +60,13 @@ namespace Meowtron.NanoProfiler.Tests
             const int eventsCount = 1000;
 
             var testProcessor = new CountMessagesTestProcessor();
-            var settings = new NanoProfilerSettingsBuilder()
+            var settings = new ProfilerSettingsBuilder()
                 .AddProcessor(_ => testProcessor)
                 .Build();
             
-            var profiler = new NanoProfiler(settings);
+            var profiler = new Profiler(settings);
 
-            var markers = new NanoScope[markersCount];
+            var markers = new Scope[markersCount];
             for (int i = 0; i < markersCount; i++)
                 markers[i] = profiler.CreateScope($"TestScope-{i}");
             
@@ -98,11 +99,11 @@ namespace Meowtron.NanoProfiler.Tests
             const int eventsPerLoop = 10;
 
             var testProcessor = new CountMessagesTestProcessor();
-            var settings = new NanoProfilerSettingsBuilder()
+            var settings = new ProfilerSettingsBuilder()
                 .AddProcessor(_ => testProcessor)
                 .Build();
             
-            var profiler = new NanoProfiler(settings);
+            var profiler = new Profiler(settings);
 
             var threads = new Thread[threadsCount];
             for (int i = 0; i < threadsCount; i++)
@@ -135,7 +136,7 @@ namespace Meowtron.NanoProfiler.Tests
             
             return;
             
-            static void ThreadFunc(NanoProfiler profiler, int idx, int loopsCount, int eventsPerLoop)
+            static void ThreadFunc(Profiler profiler, int idx, int loopsCount, int eventsPerLoop)
             {
                 var marker = profiler.CreateScope($"TestScope-{idx}");
             
@@ -161,11 +162,11 @@ namespace Meowtron.NanoProfiler.Tests
             const int eventsCount = 1000;
             
             var testProcessor = new CountMessagesTestProcessor();
-            var settings = new NanoProfilerSettingsBuilder()
+            var settings = new ProfilerSettingsBuilder()
                 .AddProcessor(_ => testProcessor)
                 .Build();
             
-            var profiler = new NanoProfiler(settings);
+            var profiler = new Profiler(settings);
 
             var threads = new Thread[threadsCount];
             for (int i = 0; i < threadsCount; i++)
@@ -190,9 +191,9 @@ namespace Meowtron.NanoProfiler.Tests
 
             return;
             
-            static void ThreadFunc(NanoProfiler profiler, int loopsCount)
+            static void ThreadFunc(Profiler profiler, int loopsCount)
             {
-                var marker = new NanoScope(profiler, MakeUniqueScopeName(), NanoProfiler.INVALID_ID, NanoMarkerFlags.Default);
+                var marker = new Scope(profiler, MakeUniqueScopeName(), Profiler.INVALID_ID, MarkerFlags.Default);
             
                 for (int i = 0; i < loopsCount; i++)
                 {

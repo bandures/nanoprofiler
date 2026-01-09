@@ -1,4 +1,5 @@
 using System;
+using NanoProfiler;
 using NUnit.Framework;
 
 namespace Meowtron.NanoProfiler.Tests
@@ -10,7 +11,7 @@ namespace Meowtron.NanoProfiler.Tests
         {
             Assert.Throws(typeof(ArgumentException), () =>
             {
-                var messagePipe = new NanoMessagePipe(123);
+                var messagePipe = new MessagePipe(123);
             });
         }
 
@@ -19,7 +20,7 @@ namespace Meowtron.NanoProfiler.Tests
         {
             const int nMessagePipeSize = 4096;
             const uint magicValue = 0xDEADBEEF;
-            using var messagePipe = new NanoMessagePipe(nMessagePipeSize);
+            using var messagePipe = new MessagePipe(nMessagePipeSize);
 
             var magicNumber = magicValue;
             var sender = messagePipe.Writer;
@@ -38,7 +39,7 @@ namespace Meowtron.NanoProfiler.Tests
         {
             const int messagePipeSize = 32;
             const uint magicValue = 0xDEADBEEF;
-            using var messagePipe = new NanoMessagePipe(messagePipeSize);
+            using var messagePipe = new MessagePipe(messagePipeSize);
 
             var magicNumber = magicValue;
             var sender = messagePipe.Writer;
@@ -47,7 +48,7 @@ namespace Meowtron.NanoProfiler.Tests
             Assert.IsFalse(sender.Advance());
         }
 
-        struct TestMessage15Byte : NanoProtocol.IMessage
+        struct TestMessage15Byte : Protocol.IMessage
         {
             public int B1; // 4
             public int B2; // 8
@@ -55,7 +56,7 @@ namespace Meowtron.NanoProfiler.Tests
             public ushort B4; // 14
             public byte B5; // 15
             
-            public void Transfer(INanoSerializer serializer)
+            public void Transfer(ISerializer serializer)
             {
                 serializer.Transfer(ref B1);
                 serializer.Transfer(ref B2);
@@ -76,7 +77,7 @@ namespace Meowtron.NanoProfiler.Tests
         public static void MessagePipe_WriteOverflowsAtExactZeroSize_DiscardsData()
         {
             const int messagePipeSize = 1024;
-            using var messagePipe = new NanoMessagePipe(messagePipeSize);
+            using var messagePipe = new MessagePipe(messagePipeSize);
 
             var sender = messagePipe.Writer;
             var message = new TestMessage15Byte();
@@ -99,7 +100,7 @@ namespace Meowtron.NanoProfiler.Tests
         {
             const int messageLength = 254;
             const int messagePipeSize = 1024;
-            using var messagePipe = new NanoMessagePipe(messagePipeSize);
+            using var messagePipe = new MessagePipe(messagePipeSize);
 
             var sender = messagePipe.Writer;
             for (byte i = 0; i < messageLength; i++)
@@ -121,7 +122,7 @@ namespace Meowtron.NanoProfiler.Tests
         {
             const int messagePipeSize = 1024;
             const uint magicValue = 0xDEADBEEF;
-            using var messagePipe = new NanoMessagePipe(messagePipeSize);
+            using var messagePipe = new MessagePipe(messagePipeSize);
 
             var magicNumber = magicValue;
             var sender = messagePipe.Writer;
@@ -135,7 +136,7 @@ namespace Meowtron.NanoProfiler.Tests
         {
             const int messagePipeSize = 1024;
             const uint magicValue = 0xDEADBEEF;
-            using var messagePipe = new NanoMessagePipe(messagePipeSize);
+            using var messagePipe = new MessagePipe(messagePipeSize);
 
             var magicNumber = magicValue;
             var sender = messagePipe.Writer;
@@ -153,7 +154,7 @@ namespace Meowtron.NanoProfiler.Tests
         {
             const int messagePipeSize = 64;
             const uint magicValue = 0xDEADBEEF;
-            using var messagePipe = new NanoMessagePipe(messagePipeSize);
+            using var messagePipe = new MessagePipe(messagePipeSize);
 
             var magicNumber = magicValue;
             var sender = messagePipe.Writer;
@@ -174,7 +175,7 @@ namespace Meowtron.NanoProfiler.Tests
         {
             const int messagePipeSize = 1024;
             const uint magicValue = 0xDEADBEEF;
-            using var messagePipe = new NanoMessagePipe(messagePipeSize);
+            using var messagePipe = new MessagePipe(messagePipeSize);
 
             var magicNumber = magicValue;
             var sender = messagePipe.Writer;

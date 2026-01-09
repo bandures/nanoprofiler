@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
+using NanoProfiler;
 using NUnit.Framework;
 
 namespace Meowtron.NanoProfiler.Tests;
@@ -14,9 +15,9 @@ public static class PerfettoProcessorTests
             
         var processor = new PerfettoProcessor(new PerfettoProcessorSettings() { FileName = testFileName });
             
-        var startMsg = new NanoProtocol.CaptureStart();
+        var startMsg = new Protocol.CaptureStart();
         processor.HandleMessage(0, ref startMsg);
-        var stopMsg = new NanoProtocol.CaptureStop();
+        var stopMsg = new Protocol.CaptureStop();
         processor.HandleMessage(0, ref stopMsg);
 
         File.Exists(testFileName);
@@ -28,12 +29,12 @@ public static class PerfettoProcessorTests
         var fileName = Path.GetTempFileName();
 
         var testProcessor = new PerfettoProcessor(new PerfettoProcessorSettings() { FileName = fileName });
-        var settings = new NanoProfilerSettingsBuilder()
+        var settings = new ProfilerSettingsBuilder()
             .AddProcessor(_ => testProcessor)
             .EnableGroups("group")
             .Build();
             
-        using (var profiler = new NanoProfiler(settings))
+        using (var profiler = new Profiler(settings))
         {
             TestAllInstruments(profiler);
         }
@@ -49,12 +50,12 @@ public static class PerfettoProcessorTests
         var fileName = Path.GetTempFileName();
 
         var testProcessor = new PerfettoProcessor(new PerfettoProcessorSettings() { FileName = fileName });
-        var settings = new NanoProfilerSettingsBuilder()
+        var settings = new ProfilerSettingsBuilder()
             .AddProcessor(_ => testProcessor)
             .Build();
 
         var longName = GenerateRandomString(100);
-        using (var profiler = new NanoProfiler(settings))
+        using (var profiler = new Profiler(settings))
         {
             var scope = profiler.CreateScope(longName);
             
@@ -80,12 +81,12 @@ public static class PerfettoProcessorTests
         var fileName = Path.GetTempFileName();
 
         var testProcessor = new PerfettoProcessor(new PerfettoProcessorSettings() { FileName = fileName });
-        var settings = new NanoProfilerSettingsBuilder()
+        var settings = new ProfilerSettingsBuilder()
             .AddProcessor(_ => testProcessor)
             .Build();
 
         var longName = GenerateRandomString(100);
-        using (var profiler = new NanoProfiler(settings))
+        using (var profiler = new Profiler(settings))
         {
             var activity = profiler.CreateActivity(longName);
             
@@ -109,23 +110,23 @@ public static class PerfettoProcessorTests
         var fileName = Path.GetTempFileName();
 
         var testProcessor = new PerfettoProcessor(new PerfettoProcessorSettings() { FileName = fileName });
-        var settings = new NanoProfilerSettingsBuilder()
+        var settings = new ProfilerSettingsBuilder()
             .AddProcessor(_ => testProcessor)
             .EnableGroups("group")
             .Build();
 
         {
-            using var profiler1 = new NanoProfiler(settings);
+            using var profiler1 = new Profiler(settings);
             TestAllInstruments(profiler1);
 
-            using var profiler2 = new NanoProfiler(settings, profiler1);
+            using var profiler2 = new Profiler(settings, profiler1);
             TestAllInstruments(profiler2);
         }
             
         Assert.IsTrue(File.Exists(fileName));
     }
 
-    private static void TestAllInstruments(NanoProfiler profiler)
+    private static void TestAllInstruments(Profiler profiler)
     {
         var group = profiler.CreateGroup("group");
         var scope = profiler.CreateScope("scope");

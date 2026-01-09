@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using NanoProfiler;
 using NUnit.Framework;
 using Meowtron.NanoProfiler.Tests.Helpers;
 
@@ -13,11 +14,11 @@ namespace Meowtron.NanoProfiler.Tests
         public static void NanoCounter_CreatedBeforeProfilerEnabled_InfoReceived()
         {
             var testProcessor = new MarkerTestProcessor();
-            var settings = new NanoProfilerSettingsBuilder()
+            var settings = new ProfilerSettingsBuilder()
                 .AddProcessor(_ => testProcessor)
                 .Build();
             
-            var profiler = new NanoProfiler(settings);
+            var profiler = new Profiler(settings);
 
             var name = MakeUniqueCounterName();
             _ = profiler.CreateCounter(name);
@@ -34,11 +35,11 @@ namespace Meowtron.NanoProfiler.Tests
         public static void NanoCounter_CreatedAfterProfilerEnabled_InfoReceived()
         {
             var testProcessor = new MarkerTestProcessor();
-            var settings = new NanoProfilerSettingsBuilder()
+            var settings = new ProfilerSettingsBuilder()
                 .AddProcessor(_ => testProcessor)
                 .Build();
             
-            var profiler = new NanoProfiler(settings);
+            var profiler = new Profiler(settings);
             profiler.Start();
 
             var name = MakeUniqueCounterName();
@@ -57,11 +58,11 @@ namespace Meowtron.NanoProfiler.Tests
             const int eventsCount = 10;
 
             var testProcessor = new CountMessagesTestProcessor();
-            var settings = new NanoProfilerSettingsBuilder()
+            var settings = new ProfilerSettingsBuilder()
                 .AddProcessor(_ => testProcessor)
                 .Build();
             
-            var profiler = new NanoProfiler(settings);
+            var profiler = new Profiler(settings);
 
             var counter = profiler.CreateCounter(MakeUniqueCounterName());
             

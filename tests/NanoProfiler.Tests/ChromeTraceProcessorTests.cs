@@ -1,4 +1,5 @@
 using System.IO;
+using NanoProfiler;
 using Newtonsoft.Json;
 using NUnit.Framework;
 
@@ -11,7 +12,7 @@ namespace Meowtron.NanoProfiler.Tests
         {
             var testFileName = Path.GetTempFileName();
             
-            var processor = new NanoChromeTraceProcessor(new ChromeTraceOptions() { FileName = testFileName });
+            var processor = new ChromeTraceProcessor(new ChromeTraceOptions() { FileName = testFileName });
             
             EmitStart(processor);
             EmitStop(processor);
@@ -24,7 +25,7 @@ namespace Meowtron.NanoProfiler.Tests
         {
             var testFileName = Path.GetTempFileName();
             
-            var processor = new NanoChromeTraceProcessor(new ChromeTraceOptions() { FileName = testFileName });
+            var processor = new ChromeTraceProcessor(new ChromeTraceOptions() { FileName = testFileName });
             EmitStart(processor);
 
             EmitMarkerInfo(processor, new() { MarkerId = 12345, Name = "Test1" });
@@ -48,13 +49,13 @@ namespace Meowtron.NanoProfiler.Tests
             var markerName = "TEST";
             var fileName = Path.GetTempFileName();
 
-            var testProcessor = new NanoChromeTraceProcessor(new ChromeTraceOptions() { FileName = fileName });
-            var settings = new NanoProfilerSettingsBuilder()
+            var testProcessor = new ChromeTraceProcessor(new ChromeTraceOptions() { FileName = fileName });
+            var settings = new ProfilerSettingsBuilder()
                 .AddProcessor(_ => testProcessor)
                 .Build();
             
             // Generate marker begin/end 
-            using (var profiler = new NanoProfiler(settings))
+            using (var profiler = new Profiler(settings))
             {
                 var marker = profiler.CreateScope(markerName);
             
@@ -70,23 +71,23 @@ namespace Meowtron.NanoProfiler.Tests
             Assert.IsTrue(ValidateJsonHasMarker(fileName, markerName));
         }
         
-        private static void EmitStart(NanoChromeTraceProcessor processor)
+        private static void EmitStart(ChromeTraceProcessor processor)
         {
-            var msg = new NanoProtocol.CaptureStart();
+            var msg = new Protocol.CaptureStart();
             processor.HandleMessage(0, ref msg);
         }
         
-        private static void EmitStop(NanoChromeTraceProcessor processor)
+        private static void EmitStop(ChromeTraceProcessor processor)
         {
-            var msg = new NanoProtocol.CaptureStop();
+            var msg = new Protocol.CaptureStop();
             processor.HandleMessage(0, ref msg);
         }
 
-        private static void EmitMarkerInfo(NanoChromeTraceProcessor processor, NanoProtocol.RegisterMarker msg) =>
+        private static void EmitMarkerInfo(ChromeTraceProcessor processor, Protocol.RegisterMarker msg) =>
             processor.HandleMessage(0, ref msg);
-        private static void EmitMarkerBegin(NanoChromeTraceProcessor processor, NanoProtocol.ScopeBegin msg) =>
+        private static void EmitMarkerBegin(ChromeTraceProcessor processor, Protocol.ScopeBegin msg) =>
             processor.HandleMessage(0, ref msg);
-        private static void EmitMarkerEnd(NanoChromeTraceProcessor processor, NanoProtocol.ScopeEnd msg) => 
+        private static void EmitMarkerEnd(ChromeTraceProcessor processor, Protocol.ScopeEnd msg) => 
             processor.HandleMessage(0, ref msg);
 
         public static bool ValidateJsonHasMarker(string fileName, string markerName)

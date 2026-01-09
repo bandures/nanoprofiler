@@ -1,5 +1,6 @@
 ﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
+using NanoProfiler;
 
 BenchmarkRunner.Run<Meowtron.NanoProfiler.Tests.ProfilerDisabledBenchmark>();
 BenchmarkRunner.Run<Meowtron.NanoProfiler.Tests.ProfilerEnabledBenchmark>();
@@ -10,13 +11,13 @@ namespace Meowtron.NanoProfiler.Tests
     [MemoryDiagnoser]
     public class ProfilerDisabledBenchmark
     {
-        NanoProfiler? _profilerInstance;
-        NanoScope _testProfilerMarker;
+        Profiler? _profilerInstance;
+        Scope _testProfilerMarker;
 
         [GlobalSetup]
         public void Startup()
         {
-            _profilerInstance = new NanoProfiler(new NanoProfilerSettings());
+            _profilerInstance = new Profiler(new ProfilerSettings());
             _testProfilerMarker = _profilerInstance.CreateScope("TestMarker");
         }
 
