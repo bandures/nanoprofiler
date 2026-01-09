@@ -7,6 +7,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [0.1.0] - 2025-11-23
 ### Added
 - This is the first release of *NanoProfiler*.
-- NanoScope, NanoActivity, NanoGroup API.
+- Scope, Activity, Group API.
 - Perfetto exporter.
 - On screen HUD profiler.
