@@ -71,7 +71,10 @@ namespace NanoProfiler
         
         private void Dispose(bool disposing)
         {
-            Marshal.FreeHGlobal(_buffer);
+            if (_buffer != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(_buffer);
+            }
         }
         
         /// <summary>
@@ -102,8 +105,8 @@ namespace NanoProfiler
             internal ReadSerializer(MessagePipe buffer)
             {
                 _buffer = buffer;
-                _readPos = _buffer._readPosition;
-                _endPos = _buffer._readPosition;
+                _readPos = Volatile.Read(ref _buffer._readPosition);
+                _endPos = _readPos;
                 _alignment = 4;
             }
 
@@ -139,18 +142,19 @@ namespace NanoProfiler
             public bool Advance()
             {
                 // advance to the end of the last message
-                _buffer._readPosition = _endPos;
+                Volatile.Write(ref _buffer._readPosition, _endPos);
                 
-                if (_buffer._readPosition == _buffer._writePosition)
+                var writePosition = Volatile.Read(ref _buffer._writePosition);
+                if (Volatile.Read(ref _buffer._readPosition) == writePosition)
                     return false;
 
                 // read message header byte-size
-                Span<byte> span = _buffer.AsSpan().Slice(_buffer._readPosition, 1);
+                Span<byte> span = _buffer.AsSpan().Slice(Volatile.Read(ref _buffer._readPosition), 1);
                 ref byte messageSize = ref span[0];
                 
                 // update message boundaries for the currently read message 
-                _readPos = WrapBufferPos(_buffer, _buffer._readPosition + sizeof(byte));
-                _endPos = WrapBufferPos(_buffer, _buffer._readPosition + messageSize);
+                _readPos = WrapBufferPos(_buffer, Volatile.Read(ref _buffer._readPosition) + sizeof(byte));
+                _endPos = WrapBufferPos(_buffer, Volatile.Read(ref _buffer._readPosition) + messageSize);
                 return true;
             }
 
@@ -196,12 +200,12 @@ namespace NanoProfiler
             internal WriteSerializer(MessagePipe buffer)
             {
                 _buffer = buffer;
-                _writePos = WrapBufferPos(_buffer,_buffer._writePosition + sizeof(byte));
+                _writePos = WrapBufferPos(_buffer, Volatile.Read(ref _buffer._writePosition) + sizeof(byte));
                 _failed = false;
                 _alignment = 4;
             }
 
-            public float Contention => (float)(WrapBufferPos(_buffer, _writePos - _buffer._readPosition) + 1) / _buffer._capacity;
+            public float Contention => (float)(WrapBufferPos(_buffer, _writePos - Volatile.Read(ref _buffer._readPosition)) + 1) / _buffer._capacity;
             
             public void Transfer<T>(ref T value) where T : unmanaged
             {
@@ -234,7 +238,7 @@ namespace NanoProfiler
                     return false;
                 }
 
-                var size = WrapBufferPos(_buffer, _writePos -_buffer._writePosition);
+                var size = WrapBufferPos(_buffer, _writePos - Volatile.Read(ref _buffer._writePosition));
                 if (size > 255)
                 {
                     Interlocked.Add(ref _buffer._discardedBytes, _messageSize);
@@ -242,10 +246,10 @@ namespace NanoProfiler
                     return false;
                 }
 
-                Span<byte> span = _buffer.AsSpan().Slice(_buffer._writePosition, 1);
+                Span<byte> span = _buffer.AsSpan().Slice(Volatile.Read(ref _buffer._writePosition), 1);
                 span[0] = (byte)size;
                 
-                _buffer._writePosition = _writePos;
+                Volatile.Write(ref _buffer._writePosition, _writePos);
                 Interlocked.Add(ref _buffer._transferredBytes, _messageSize);
                 Restart();
 
@@ -257,7 +261,7 @@ namespace NanoProfiler
                 var srcSize = srcSpan.Length;
                 _messageSize += srcSize;
 
-                var availableToWrite = _buffer._capacity - WrapBufferPos(_buffer, _writePos - _buffer._readPosition) - 1;
+                var availableToWrite = _buffer._capacity - WrapBufferPos(_buffer, _writePos - Volatile.Read(ref _buffer._readPosition)) - 1;
                 if (_failed || availableToWrite < srcSize)
                 {
                     _failed = true;
@@ -289,7 +293,7 @@ namespace NanoProfiler
             private void Restart()
             {
                 _failed = false;
-                _writePos = _buffer._writePosition;
+                _writePos = Volatile.Read(ref _buffer._writePosition);
                     
                 // Try to reserve space for message size header.
                 // If no space is available, entire message will be

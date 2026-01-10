@@ -30,6 +30,7 @@ NanoProfiler - profiler for Unity games that works in release builds. It is desi
 9. **Using directive in deepest scope** - Method-level using when possible
 10. **No inline comments** - Use descriptive names; code should be self-explanatory
 11. **No Debug.Log** - Use provided logger, never use Unity Debug.Log
+12. **Unmanaged memory** - Never replace usage of unmanaged memory with heap allocations. Always prefer to use unmanaged memory when possible.
 
 **Example: Enforce Quality First**
 
