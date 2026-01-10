@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -48,11 +48,11 @@ namespace NanoProfiler
     }
     
     public sealed class PerfettoProcessor : 
-        IProcessor<Protocol.CaptureStart>, 
-        IProcessor<Protocol.CaptureStop>, 
-        IProcessor<Protocol.RegisterMarker>, 
-        IProcessor<Protocol.RegisterGroup>, 
-        IProcessor<Protocol.ScopeBegin>, 
+        IProcessor<Protocol.CaptureStart>,
+        IProcessor<Protocol.CaptureStop>,
+        IProcessor<Protocol.RegisterMarker>,
+        IProcessor<Protocol.RegisterGroup>,
+        IProcessor<Protocol.ScopeBegin>,
         IProcessor<Protocol.ScopeEnd>,
         IProcessor<Protocol.ActivityBegin>,
         IProcessor<Protocol.ActivityEnd>,
@@ -70,8 +70,10 @@ namespace NanoProfiler
         private readonly Dictionary<string, ActivityInfo> _activities = new();
         private readonly Dictionary<int, ulong> _openActivities = new();
         private readonly Dictionary<uint, CounterInfo> _counters = new();
+        private readonly Dictionary<int, ulong> _threadTracks = new();
         private readonly long _dynamicScopesTriggerThresholdTicks;
         private readonly long _dynamicScopesCooldownTicks;
+        private readonly StringBuilder _stringBuilder = new(256);
         
         private static readonly uint TrustedPacketSequenceId;
         
@@ -125,30 +127,42 @@ namespace NanoProfiler
             _lastFrameTimestamp = 0; 
             _scopeRootTrackId = 0;
             _activityRootTrackId = 0;
+            
+            _groups.Clear();
+            _markers.Clear();
+            _activities.Clear();
+            _openActivities.Clear();
+            _counters.Clear();
+            _threadTracks.Clear();
         }
 
         public void HandleMessage(int threadId, ref Protocol.RegisterGroup msg)
         {
+            if (_fileWriter == null)
+                return;
             if (_groups.ContainsKey(msg.GroupId))
                 return;
 
-            var uuid = _fileWriter!.GetNextUniqueId();
-            _fileWriter!.AddPacket(new TracePacket
-            {
-                TrackDescriptor = new TrackDescriptor
-                {
-                    Uuid = uuid,
-                    Name = msg.Name,
-                    ParentUuid = _activityRootTrackId,
-                    ChildOrdering = TrackDescriptor.Types.ChildTracksOrdering.Chronological
-                },
-            });
+            var uuid = _fileWriter.GetNextUniqueId();
+            var packet = _fileWriter.GetPacket();
+            var trackDescriptor = _fileWriter.GetTrackDescriptor();
+            
+            trackDescriptor.Uuid = uuid;
+            trackDescriptor.Name = msg.Name;
+            trackDescriptor.ParentUuid = _activityRootTrackId;
+            trackDescriptor.ChildOrdering = TrackDescriptor.Types.ChildTracksOrdering.Chronological;
+            
+            packet.TrackDescriptor = trackDescriptor;
+            _fileWriter.AddPacket(packet);
 
             _groups[msg.GroupId] = new GroupInfo(uuid);
         }
 
         public void HandleMessage(int threadId, ref Protocol.RegisterMarker msg)
         {
+            if (_fileWriter == null)
+                return;
+            
             var groupTrack = _activityRootTrackId;
             if (_groups.TryGetValue(msg.GroupId, out var groupInfo))
                 groupTrack = groupInfo.TrackId;
@@ -158,49 +172,87 @@ namespace NanoProfiler
 
         public void HandleMessage(int threadId, ref Protocol.ScopeBegin msg)
         {
+            if (_fileWriter == null)
+                return;
+            
             if (_settings.DynamicScopes)
             {
-                WriteFrameScope(Protocol.MessageType.ScopeBegin, ref msg);
+                WriteFrameScope(threadId, Protocol.MessageType.ScopeBegin, ref msg);
             }
             else
             {
                 var uuid = GetOrCreateInternedData(msg.MarkerId, null, out var internedData);
-                _fileWriter!.AddTimestampEvent(new TrackEvent { Type = TrackEvent.Types.Type.SliceBegin, NameIid = uuid, TrackUuid = _scopeRootTrackId }, msg.Timestamp, internedData, true);
+                var trackId = GetOrCreateThreadTrack(threadId);
+                
+                var trackEvent = _fileWriter.GetTrackEvent();
+                trackEvent.Type = TrackEvent.Types.Type.SliceBegin;
+                trackEvent.NameIid = uuid;
+                trackEvent.TrackUuid = trackId;
+                
+                _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, internedData, true);
             }
         }
 
         public void HandleMessage(int threadId, ref Protocol.ScopeEnd msg)
         {
+            if (_fileWriter == null)
+                return;
+            
             if (_settings.DynamicScopes)
             {
-                WriteFrameScope(Protocol.MessageType.ScopeEnd, ref msg);
+                WriteFrameScope(threadId, Protocol.MessageType.ScopeEnd, ref msg);
             }
             else
             {
-                _fileWriter!.AddTimestampEvent(new TrackEvent { Type = TrackEvent.Types.Type.SliceEnd, TrackUuid = _scopeRootTrackId }, msg.Timestamp, null, false);
+                var trackId = GetOrCreateThreadTrack(threadId);
+                
+                var trackEvent = _fileWriter.GetTrackEvent();
+                trackEvent.Type = TrackEvent.Types.Type.SliceEnd;
+                trackEvent.TrackUuid = trackId;
+
+                _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, null, false);
             }
         }
         
         public void HandleMessage(int threadId, ref Protocol.ActivityBegin msg)
         {
+            if (_fileWriter == null)
+                return;
+            
             if (!_markers.TryGetValue(msg.MarkerId, out var markerInfo))
                 return;
             
-            var name = MakeUniqueId(markerInfo.Name, msg.Param1, msg.Param2, msg.Param3);
+            var name = MakeUniqueId(markerInfo.Name, msg.Param1, msg.Param2, msg.Param3, _stringBuilder);
             var activity = RegisterActivity(msg.UniqueId, name, markerInfo.GroupTrackId, out var internedData);
-            _fileWriter!.AddTimestampEvent(new TrackEvent { Type = TrackEvent.Types.Type.SliceBegin, NameIid = activity.InternId, TrackUuid = activity.TrackId }, msg.Timestamp, internedData, true);
+            
+            var trackEvent = _fileWriter.GetTrackEvent();
+            trackEvent.Type = TrackEvent.Types.Type.SliceBegin;
+            trackEvent.NameIid = activity.InternId;
+            trackEvent.TrackUuid = activity.TrackId;
+            
+            _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, internedData, true);
         }
 
         public void HandleMessage(int threadId, ref Protocol.ActivityEnd msg)
         {
+            if (_fileWriter == null)
+                return;
+            
             if (!_openActivities.Remove(msg.UniqueId, out var trackId))
                 return;
             
-            _fileWriter!.AddTimestampEvent(new TrackEvent { Type = TrackEvent.Types.Type.SliceEnd, TrackUuid = trackId }, msg.Timestamp, null, false);
+            var trackEvent = _fileWriter.GetTrackEvent();
+            trackEvent.Type = TrackEvent.Types.Type.SliceEnd;
+            trackEvent.TrackUuid = trackId;
+            
+            _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, null, false);
         }
 
         public void HandleMessage(int threadId, ref Protocol.CounterSample msg)
         {
+            if (_fileWriter == null)
+                return;
+            
             if (!_counters.TryGetValue(msg.MarkerId, out var info) && !RegisterCounter(msg.MarkerId, out info))
                 return;
 
@@ -216,11 +268,19 @@ namespace NanoProfiler
             
             _counters[msg.MarkerId] = info with { LastSampleTimestamp = msg.Timestamp, HasValue = false };
             
-            _fileWriter!.AddTimestampEvent(new TrackEvent { Type = TrackEvent.Types.Type.Counter, TrackUuid = info.TrackId, CounterValue = (long)value }, msg.Timestamp, null, false);
+            var trackEvent = _fileWriter.GetTrackEvent();
+            trackEvent.Type = TrackEvent.Types.Type.Counter;
+            trackEvent.TrackUuid = info.TrackId;
+            trackEvent.CounterValue = (long)value;
+            
+            _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, null, false);
         }
 
         public void HandleMessage(int threadId, ref Protocol.Frame msg)
         {
+            if (_fileWriter == null)
+                return;
+            
             if (_settings.DynamicScopes && 
                 _frameRecorder is { IsValid: true } &&
                 msg.Timestamp - _lastFrameTimestamp > _dynamicScopesTriggerThresholdTicks &&
@@ -232,15 +292,17 @@ namespace NanoProfiler
             
             _lastFrameTimestamp = msg.Timestamp;
             _frameRecorder?.Reset();
-            _fileWriter!.FlushTrace();
+            _fileWriter.FlushTrace();
         }
 
-        private void WriteFrameScope<T>(Protocol.MessageType msgType, ref T value) where T : unmanaged
+        private void WriteFrameScope<T>(int threadId, Protocol.MessageType msgType, ref T value) where T : unmanaged
         {
             if (_frameRecorder == null)
                 return;
+            
             var msgTypeInt = (int)msgType;
             _frameRecorder.Write(ref msgTypeInt);
+            _frameRecorder.Write(ref threadId);
             _frameRecorder.Write(ref value);
         }
 
@@ -248,12 +310,19 @@ namespace NanoProfiler
         {
             if (_frameRecorder == null || !_frameRecorder.IsValid)
                 return;
-            int position = 0;
+            
+            var position = 0;
             while (position < _frameRecorder.Position)
             {
-                int msgType = 0;
+                var msgType = 0;
+                var threadId = 0;
+                
                 if (!_frameRecorder.Read(ref position, ref msgType))
                     break;
+                
+                if (!_frameRecorder.Read(ref position, ref threadId))
+                    break;
+                    
                 switch ((Protocol.MessageType)msgType)
                 {
                     case Protocol.MessageType.ScopeBegin:
@@ -262,7 +331,14 @@ namespace NanoProfiler
                         if (_frameRecorder.Read(ref position, ref msg))
                         {
                             var uuid = GetOrCreateInternedData(msg.MarkerId, null, out var internedData);
-                            _fileWriter!.AddTimestampEvent(new TrackEvent { Type = TrackEvent.Types.Type.SliceBegin, NameIid = uuid, TrackUuid = _scopeRootTrackId }, msg.Timestamp, internedData, true);
+                            var trackId = GetOrCreateThreadTrack(threadId);
+                            
+                            var trackEvent = _fileWriter!.GetTrackEvent();
+                            trackEvent.Type = TrackEvent.Types.Type.SliceBegin;
+                            trackEvent.NameIid = uuid;
+                            trackEvent.TrackUuid = trackId;
+                            
+                            _fileWriter!.AddTimestampEvent(trackEvent, msg.Timestamp, internedData, true);
                         }
                         break;
                     }
@@ -271,7 +347,13 @@ namespace NanoProfiler
                         Protocol.ScopeEnd msg = default;
                         if (_frameRecorder.Read(ref position, ref msg))
                         {
-                            _fileWriter!.AddTimestampEvent(new TrackEvent { Type = TrackEvent.Types.Type.SliceEnd, TrackUuid = _scopeRootTrackId }, msg.Timestamp, null, false);
+                            var trackId = GetOrCreateThreadTrack(threadId);
+                            
+                            var trackEvent = _fileWriter!.GetTrackEvent();
+                            trackEvent.Type = TrackEvent.Types.Type.SliceEnd;
+                            trackEvent.TrackUuid = trackId;
+                            
+                            _fileWriter!.AddTimestampEvent(trackEvent, msg.Timestamp, null, false);
                         }
                         break;
                     }
@@ -282,6 +364,16 @@ namespace NanoProfiler
             }
         }
         
+        private ulong GetOrCreateThreadTrack(int threadId)
+        {
+            if (_threadTracks.TryGetValue(threadId, out var trackId))
+                return trackId;
+            
+            trackId = _fileWriter!.AddThreadTrack(threadId, $"Thread {threadId}", _scopeRootTrackId);
+            _threadTracks[threadId] = trackId;
+            return trackId;
+        }
+
         private ulong GetOrCreateInternedData(in uint markerId, in string? customName, out InternedData? internedData)
         {
             if (!_markers.TryGetValue(markerId, out var markerInfo))
@@ -297,17 +389,14 @@ namespace NanoProfiler
             }
              
             var uuid = _fileWriter!.GetNextUniqueId();
-            internedData = new InternedData
-            {
-                EventNames =
-                {
-                    new EventName
-                    {
-                        Iid = uuid,
-                        Name = customName ?? markerInfo.Name
-                    }
-                }
-            };
+            internedData = _fileWriter.GetInternedData();
+            
+            var eventName = _fileWriter.GetEventName();
+            eventName.Iid = uuid;
+            eventName.Name = customName ?? markerInfo.Name;
+            
+            internedData.EventNames.Add(eventName);
+            
             _markers[markerId] = markerInfo with { Interned = true, InternId = uuid };
             return uuid;
         }
@@ -322,28 +411,24 @@ namespace NanoProfiler
             }
 
             var trackId = _fileWriter!.GetNextUniqueId();
-            _fileWriter!.AddPacket(new TracePacket
-            {
-                TrackDescriptor = new TrackDescriptor
-                {
-                    Uuid = trackId,
-                    Name = name,
-                    ParentUuid = parentTrackId
-                },
-            });
+            var packet = _fileWriter.GetPacket();
+            var trackDescriptor = _fileWriter.GetTrackDescriptor();
             
-            var internId = _fileWriter!.GetNextUniqueId();
-            internedData = new InternedData
-            {
-                EventNames =
-                {
-                    new EventName
-                    {
-                        Iid = internId,
-                        Name = name
-                    }
-                }
-            };
+            trackDescriptor.Uuid = trackId;
+            trackDescriptor.Name = name;
+            trackDescriptor.ParentUuid = parentTrackId;
+            
+            packet.TrackDescriptor = trackDescriptor;
+            _fileWriter.AddPacket(packet);
+            
+            var internId = _fileWriter.GetNextUniqueId();
+            internedData = _fileWriter.GetInternedData();
+            
+            var eventName = _fileWriter.GetEventName();
+            eventName.Iid = internId;
+            eventName.Name = name;
+            
+            internedData.EventNames.Add(eventName);
 
             _activities[name] = new ActivityInfo(trackId, internId);
             _openActivities[uniqueId] = trackId;
@@ -359,28 +444,28 @@ namespace NanoProfiler
             }
 
             var uuid = _fileWriter!.GetNextUniqueId();
-            _fileWriter!.AddPacket(new TracePacket
-            {
-                TrackDescriptor = new TrackDescriptor
-                {
-                    Uuid = uuid,
-                    Name = $"{markerInfo.Name} Counter",
-                    ParentUuid = markerInfo.GroupTrackId,
-                    Counter = new CounterDescriptor
-                    {
-                        Unit = CounterDescriptor.Types.Unit.Count
-                    }
-                },
-            });
+            var packet = _fileWriter.GetPacket();
+            var trackDescriptor = _fileWriter.GetTrackDescriptor();
+            
+            trackDescriptor.Uuid = uuid;
+            trackDescriptor.Name = $"{markerInfo.Name} Counter";
+            trackDescriptor.ParentUuid = markerInfo.GroupTrackId;
+            
+            var counterDescriptor = _fileWriter.GetCounterDescriptor();
+            counterDescriptor.Unit = CounterDescriptor.Types.Unit.Count;
+            trackDescriptor.Counter = counterDescriptor;
+            
+            packet.TrackDescriptor = trackDescriptor;
+            _fileWriter.AddPacket(packet);
 
             info = new CounterInfo(uuid, 0, false, 0);
             _counters[markerId] = info;
             return true;
         }
         
-        private static string MakeUniqueId(string name, TypedAttribute param1, TypedAttribute param2, TypedAttribute param3)
+        private static string MakeUniqueId(string name, TypedAttribute param1, TypedAttribute param2, TypedAttribute param3, StringBuilder sb)
         {
-            var sb = new StringBuilder(256);
+            sb.Clear();
             
             // Special case if the first parameter is a string. For UX bring it first than
             sb.Append(param1.ParamType == TypedAttribute.ValueType.String ? $"{param1.AsString} - {name}" : name);
@@ -415,4 +500,3 @@ namespace NanoProfiler
         }
     }
 }
-

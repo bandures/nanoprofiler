@@ -31,6 +31,7 @@ NanoProfiler - profiler for Unity games that works in release builds. It is desi
 10. **No inline comments** - Use descriptive names; code should be self-explanatory
 11. **No Debug.Log** - Use provided logger, never use Unity Debug.Log
 12. **Unmanaged memory** - Never replace usage of unmanaged memory with heap allocations. Always prefer to use unmanaged memory when possible.
+13. **Concise, but readable** - Use shortest possible code, as long as it's easy to read and understand. Prefer usage of `var`.
 
 **Example: Enforce Quality First**
 
@@ -63,8 +64,8 @@ public sealed class PlayerService
 }
 ```
 
-## Code Review Checklist
-**ALWAYS check these BEFORE commiting any code:**
+## Code Review
+Code review all changes after work is complete. Review them as if these changes wasn't written by you. Be very strict and make sure that the changes are of the highest quality
 
 **Code Quality (CHECK FIRST):**
 - Nullable reference types enabled (#nullable enable)
