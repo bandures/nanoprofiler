@@ -1,0 +1,36 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <ui:VisualElement style="flex-grow: 1; padding: 5px;">
+        <!-- Toolbar -->
+        <uie:Toolbar>
+            <uie:ToolbarButton name="btnRefresh" text="Refresh" />
+            <uie:ToolbarButton name="btnDownloadAll" text="Download All Visible" />
+            <uie:ToolbarSpacer style="width: 20px;" />
+            <uie:ToolbarSearchField name="searchField" style="flex-grow: 1; max-width: 300px;" />
+        </uie:Toolbar>
+
+        <!-- Split View -->
+        <ui:TwoPaneSplitView fixed-pane-initial-dimension="300">
+            <!-- Left: Tree View -->
+            <ui:VisualElement name="leftPane">
+                <ui:Label text="Versions &amp; Devices" style="-unity-font-style: bold; padding: 5px;" />
+                <ui:TreeView name="versionTree" focusable="true" style="flex-grow: 1;" />
+            </ui:VisualElement>
+
+            <!-- Right: List View -->
+            <ui:VisualElement name="rightPane">
+                <ui:Label text="Captures" style="-unity-font-style: bold; padding: 5px;" />
+                <ui:MultiColumnListView name="traceList" fixed-item-height="25" style="flex-grow: 1;">
+                    <ui:Columns>
+                        <ui:Column name="colName" title="File Name" width="450" stretchable="true" />
+                        <ui:Column name="colSession" title="Session ID" width="300" stretchable="true" />
+                        <ui:Column name="colSize" title="Size (MB)" width="120" />
+                        <ui:Column name="colStatus" title="Status" width="100" />
+                    </ui:Columns>
+                </ui:MultiColumnListView>
+            </ui:VisualElement>
+        </ui:TwoPaneSplitView>
+        
+        <ui:ProgressBar name="progressBar" style="display: none;" />
+        <ui:Label name="statusLabel" text="Ready" style="height: 20px; -unity-text-align: middle-left;" />
+    </ui:VisualElement>
+</ui:UXML>

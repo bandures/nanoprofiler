@@ -1,0 +1,11 @@
+.downloaded-label {
+    color: #4CAF50; /* Green */
+}
+
+.cloud-label {
+    color: #2196F3; /* Blue */
+}
+
+.trace-row:hover {
+    background-color: #3A3A3A;
+}
