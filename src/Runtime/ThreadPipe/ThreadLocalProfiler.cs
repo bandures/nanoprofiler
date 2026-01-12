@@ -37,6 +37,7 @@ namespace NanoProfiler
         
         public void Dispose()
         {
+            Enabled = false;
             _pipe?.Dispose();
         }
 
