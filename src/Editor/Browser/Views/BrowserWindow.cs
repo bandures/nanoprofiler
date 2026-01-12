@@ -129,6 +129,7 @@ namespace NanoProfiler.Editor
 
             _treeView.viewDataKey = "ProfilerVersionTree";
             
+#if UNITY_6000_0_OR_NEWER
             _treeView.itemExpandedChanged += args =>
             {
                 if (!args.isExpanded)
@@ -140,6 +141,18 @@ namespace NanoProfiler.Editor
                 
                 LoadModelsAsync(node, args.id).SafeFireAndForget();
             };
+#else
+            _treeView.itemsChosen += objects =>
+            {
+                var obj = objects.FirstOrDefault();
+                if (obj is not HierarchyNode node)
+                    return;
+                if (node is not { Type: HierarchyNode.NodeType.Version } || node.Children.Count != 0) 
+                    return;
+                
+                LoadModelsAsync(node, node.UniqueId).SafeFireAndForget();
+            };
+#endif
 
             _treeView.selectionChanged += (selectedIds) => 
             {

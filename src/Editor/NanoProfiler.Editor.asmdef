@@ -7,9 +7,9 @@
     ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
-    "overrideReferences": false,
+    "overrideReferences": true,
     "precompiledReferences": [
-        "Google.Apis.Storage.v1.dll"
+        "NanoProfiler.Google.Apis.Storage.v1.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [],
