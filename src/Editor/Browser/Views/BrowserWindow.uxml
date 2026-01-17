@@ -1,4 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <Style src="BrowserWindow.uss" />
     <ui:VisualElement style="flex-grow: 1; padding: 5px;">
         <!-- Toolbar -->
         <uie:Toolbar>
@@ -23,7 +24,7 @@
                     <ui:Columns>
                         <ui:Column name="colName" title="File Name" width="450" stretchable="true" />
                         <ui:Column name="colSession" title="Session ID" width="300" stretchable="true" />
-                        <ui:Column name="colSize" title="Size (MB)" width="120" />
+                        <ui:Column name="colSize" title="Size" width="120" />
                         <ui:Column name="colStatus" title="Status" width="100" />
                     </ui:Columns>
                 </ui:MultiColumnListView>

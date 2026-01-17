@@ -9,3 +9,9 @@
 .trace-row:hover {
     background-color: #3A3A3A;
 }
+
+.list-label {
+    flex-grow: 1;
+    -unity-text-align: middle-left;
+    margin: 2px;
+}

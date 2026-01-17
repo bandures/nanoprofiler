@@ -41,6 +41,7 @@ namespace NanoProfiler
         public float DynamicScopesTriggerThresholdMs { get; init; } = 50.0f;
         public float DynamicScopesCooldownMs { get; init; } = 2000.0f;
         public int DynamicScopesBufferSize { get; init; } = 1024 * 1024;
+        public int StartupFramesToWrite { get; init; } = 20;
         
         public PerfettoProcessorSettings()
         {
@@ -83,6 +84,7 @@ namespace NanoProfiler
         private ulong _activityRootTrackId;
         private long _lastFrameTimestamp;
         private long _frameRecorderDisableUntilTimestamp;
+        private int _frameIndex;
 
         static PerfettoProcessor()
         {
@@ -281,10 +283,13 @@ namespace NanoProfiler
             if (_fileWriter == null)
                 return;
             
+            _frameIndex++;
+
+            var startupFrame = _frameIndex <= _settings.StartupFramesToWrite;
+            var spikeFrame = msg.Timestamp - _lastFrameTimestamp > _dynamicScopesTriggerThresholdTicks;
             if (_settings.DynamicScopes && 
-                _frameRecorder is { IsValid: true } &&
-                msg.Timestamp - _lastFrameTimestamp > _dynamicScopesTriggerThresholdTicks &&
-                msg.Timestamp > _frameRecorderDisableUntilTimestamp)
+                _frameRecorder is { IsValid: true } && 
+                (spikeFrame && msg.Timestamp > _frameRecorderDisableUntilTimestamp || startupFrame))
             {
                 ReplayFrameBuffer();
                 _frameRecorderDisableUntilTimestamp = msg.Timestamp + _dynamicScopesCooldownTicks;

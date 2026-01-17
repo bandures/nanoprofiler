@@ -20,16 +20,19 @@ namespace NanoProfiler.Editor
         private ToolbarButton _btnDownloadAll;
         private Label _statusLabel;
 
-        private List<HierarchyNode> _roots = new();
-        private Dictionary<int, HierarchyNode> _idToItem = new();
+        private readonly List<HierarchyNode> _roots = new();
+        private readonly Dictionary<int, HierarchyNode> _idToItem = new();
+        private readonly List<HierarchyNode> _currentVisibleTraces = new();
+        
+        private string _currentFilter;
         private HierarchyNode _currentSelectedNode;
-        private List<HierarchyNode> _currentVisibleTraces = new();
+        
 
         [MenuItem("Window/Analysis/NanoProfiler Browser")]
         public static void ShowWindow()
         {
             var wnd = GetWindow<BrowserWindow>();
-            wnd.titleContent = new GUIContent("Cloud Profiler");
+            wnd.titleContent = new GUIContent("NanoProfiler Browser");
             wnd.minSize = new Vector2(800, 600);
         }
 
@@ -65,27 +68,29 @@ namespace NanoProfiler.Editor
             RefreshData();
         }
 
-        public void OnDestroy()
-        {
-            
-        }
-
         private void SetupToolbar()
         {
-            _btnRefresh.clicked += RefreshData;
+            _btnRefresh.clicked += () => RefreshData(_currentFilter);
 
-            _searchField.RegisterValueChangedCallback(_ => RefreshListContent());
+            _searchField.RegisterValueChangedCallback(val => FilterContent(val));
 
             _btnDownloadAll.clicked += DownloadVisibleTracesAsync;
         }
 
-        private async void RefreshData()
+        private void FilterContent(ChangeEvent<string> evt)
+        {
+            _currentFilter = evt.newValue;
+            RefreshData(_currentFilter);
+        }
+
+        private async void RefreshData(string filter = null)
         {
             try
             {
                 _statusLabel.text = "Fetching versions...";
-                _roots = await _controller.RefreshVersionsAsync();
-                BuildTreeView();
+                _roots.Clear();
+                _roots.AddRange(await _controller.RefreshVersionsAsync());
+                BuildTreeView(filter);
                 _statusLabel.text = "Versions loaded.";
             }
             catch (Exception ex)
@@ -115,7 +120,9 @@ namespace NanoProfiler.Editor
 
         private void SetupTreeView()
         {
-            _treeView.makeItem = () => new Label();
+            _treeView.viewDataKey = "ProfilerVersionTree";
+            
+            _treeView.makeItem = MakeCell;
             _treeView.bindItem = (element, id) => 
             {
                 if (id == -1)
@@ -127,8 +134,6 @@ namespace NanoProfiler.Editor
                     label.text = node.Name;
             };
 
-            _treeView.viewDataKey = "ProfilerVersionTree";
-            
 #if UNITY_6000_0_OR_NEWER
             _treeView.itemExpandedChanged += args =>
             {
@@ -170,7 +175,7 @@ namespace NanoProfiler.Editor
             _statusLabel.text = $"Loading models for {node.Name}...";
             await _controller.LoadModelsAsync(node);
             
-            BuildTreeView();
+            BuildTreeView(_currentFilter);
             _treeView.ExpandItem(id);
             _statusLabel.text = "Models loaded.";
         }
@@ -189,23 +194,24 @@ namespace NanoProfiler.Editor
         {
             _listView.itemsSource = _currentVisibleTraces;
 
-            _listView.columns["colName"].makeCell = () => new Label();
+            _listView.columns["colName"].makeCell = MakeCell;
             _listView.columns["colName"].bindCell = (element, index) => 
-                (element as Label).text = _currentVisibleTraces[index].Name;
+                ((Label)element).text = _currentVisibleTraces[index].Name;
 
-            _listView.columns["colSession"].makeCell = () => new Label();
+            _listView.columns["colSession"].makeCell = MakeCell;
             _listView.columns["colSession"].bindCell = (element, index) => 
-                (element as Label).text = _currentVisibleTraces[index].SessionId;
+                ((Label)element).text = _currentVisibleTraces[index].SessionId;
 
-            _listView.columns["colSize"].makeCell = () => new Label();
+            _listView.columns["colSize"].makeCell = MakeCell;
             _listView.columns["colSize"].bindCell = (element, index) => 
-                (element as Label).text = $"{_currentVisibleTraces[index].SizeBytes / 1024.0 / 1024.0:F2} MB";
+                ((Label)element).text = $"{EditorUtility.FormatBytes((long)_currentVisibleTraces[index].SizeBytes)}";
 
-            _listView.columns["colStatus"].makeCell = () => new Label();
+            _listView.columns["colStatus"].makeCell = MakeCell;
             _listView.columns["colStatus"].bindCell = (element, index) => 
             {
                 var trace = _currentVisibleTraces[index];
-                var label = (element as Label);
+                if (element is not Label label)
+                    return;
                 label.text = trace.IsDownloaded ? "Local" : "Cloud";
                 label.style.color = trace.IsDownloaded ? new StyleColor(Color.green) : new StyleColor(new Color(0.2f, 0.6f, 1f));
             };
@@ -229,44 +235,76 @@ namespace NanoProfiler.Editor
             };
         }
 
-        private async void DownloadAndOpen(HierarchyNode trace)
+        private VisualElement MakeCell()
         {
-            _statusLabel.text = $"Downloading {trace.Name}...";
-            await _controller.DownloadFileAsync(trace);
-            _listView.RefreshItems();
-            _statusLabel.text = $"Opening {trace.Name}...";
-            _controller.OpenTrace(trace);
+            var label = new Label();
+            label.AddToClassList("list-label");
+            return label;
         }
 
-        private void BuildTreeView()
+        private async void DownloadAndOpen(HierarchyNode trace)
+        {
+            try
+            {
+                _statusLabel.text = $"Downloading {trace.Name}...";
+                await _controller.DownloadFileAsync(trace);
+                _listView.RefreshItems();
+                _statusLabel.text = $"Opening {trace.Name}...";
+                _controller.OpenTrace(trace);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+            }
+        }
+
+        private void BuildTreeView(string filter)
         {
             _idToItem.Clear();
-            var treeViewItems = _roots.Select(ConvertToTreeData).ToList();
+            
+            var treeViewItems = new List<TreeViewItemData<HierarchyNode>>();
+            foreach (var root in _roots)
+            {
+                if (ConvertToTreeData(root, out var item))
+                    treeViewItems.Add(item);
+            }
             
             _treeView.SetRootItems(treeViewItems);
             _treeView.Rebuild();
             
             return;
 
-            TreeViewItemData<HierarchyNode> ConvertToTreeData(HierarchyNode node)
+            bool ConvertToTreeData(HierarchyNode node, out TreeViewItemData<HierarchyNode> item)
             {
+                item = default;
+                
+                if (filter != null && !node.RemotePath.Contains(filter))
+                    return false;
+                
                 _idToItem[node.UniqueId] = node;
                 
-                var children = new List<TreeViewItemData<HierarchyNode>>();
-                if (node.Children is { Count: > 0 })
+                List<TreeViewItemData<HierarchyNode>> children = null;
+                if (node.Type == HierarchyNode.NodeType.Version)
                 {
-                    foreach (var child in node.Children)
-                        children.Add(ConvertToTreeData(child));
-                }
-                else if (node.Type == HierarchyNode.NodeType.Version)
-                {
-                    // Fake node to show expand arrow
-                    _idToItem[node.UniqueId + 1] = null;
-                    children.Add(new TreeViewItemData<HierarchyNode>(node.UniqueId + 1, null));
-                    //_treeView?.CollapseItem(node.UniqueId);
+                    children = new();
+                    if (node.Children is { Count: > 0 })
+                    {
+                        foreach (var child in node.Children)
+                        {
+                            if (ConvertToTreeData(child, out var childItem))
+                                children.Add(childItem);
+                        }
+                    }
+                    else
+                    {
+                        // Fake node to show expand arrow
+                        _idToItem[node.UniqueId + 1] = null;
+                        children.Add(new TreeViewItemData<HierarchyNode>(node.UniqueId + 1, null));
+                    }
                 }
 
-                return new TreeViewItemData<HierarchyNode>(node.UniqueId, node, children);
+                item = new TreeViewItemData<HierarchyNode>(node.UniqueId, node, children);
+                return true;
             }
         }
 
