@@ -86,7 +86,7 @@ namespace NanoProfiler.Editor
             return models.OrderBy(m => m).ToList();
         }
 
-        public record struct TraceInfo(string RemotePath, ulong SizeBytes);
+        public record struct TraceInfo(string RemotePath, ulong SizeBytes, DateTime? Timestamp);
         
         public async Task<List<TraceInfo>> ListTracesAsync(string remotePrefix)
         {
@@ -103,7 +103,7 @@ namespace NanoProfiler.Editor
                     if (!obj.Name.EndsWith(".trace"))
                         continue;
                     
-                    traces.Add(new TraceInfo(obj.Name, obj.Size ?? 0));
+                    traces.Add(new TraceInfo(obj.Name, obj.Size ?? 0, obj.TimeCreatedDateTimeOffset?.UtcDateTime));
                 }
             }
             catch (Exception ex)
@@ -124,7 +124,7 @@ namespace NanoProfiler.Editor
             var options = new ListObjectsOptions
             {
                 MatchGlob = pattern,
-                Fields = "items(name,size)" // Optimization: Fetch only the names to save bandwidth
+                Fields = "items(name,size,timeCreated)" // Optimization: Fetch only the names to save bandwidth
             };
             var objects = _storageClient.ListObjectsAsync(BUCKET_NAME, "", options);
 
@@ -134,7 +134,7 @@ namespace NanoProfiler.Editor
                 if (!obj.Name.EndsWith(".trace"))
                     continue;
                     
-                traces.Add(new TraceInfo(obj.Name, obj.Size ?? 0));
+                traces.Add(new TraceInfo(obj.Name, obj.Size ?? 0, obj.TimeCreatedDateTimeOffset?.UtcDateTime));
             }
             
             return traces.OrderByDescending(t => t.RemotePath).ToList();

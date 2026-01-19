@@ -206,6 +206,10 @@ namespace NanoProfiler.Editor
             _listView.columns["colSize"].bindCell = (element, index) => 
                 ((Label)element).text = $"{EditorUtility.FormatBytes((long)_currentVisibleTraces[index].SizeBytes)}";
 
+            _listView.columns["colDate"].makeCell = MakeCell;
+            _listView.columns["colDate"].bindCell = (element, index) => 
+                ((Label)element).text = _currentVisibleTraces[index].UploadTimestamp?.ToString() ?? "N/A";
+
             _listView.columns["colStatus"].makeCell = MakeCell;
             _listView.columns["colStatus"].bindCell = (element, index) => 
             {

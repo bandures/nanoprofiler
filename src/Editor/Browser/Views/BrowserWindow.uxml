@@ -25,6 +25,7 @@
                         <ui:Column name="colName" title="File Name" width="450" stretchable="true" />
                         <ui:Column name="colSession" title="Session ID" width="300" stretchable="true" />
                         <ui:Column name="colSize" title="Size" width="120" />
+                        <ui:Column name="colDate" title="Date" width="150" />
                         <ui:Column name="colStatus" title="Status" width="100" />
                     </ui:Columns>
                 </ui:MultiColumnListView>

@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using Semver;
 
 namespace NanoProfiler.Editor
 {
-    public class HierarchyNode
+    internal class HierarchyNode
     {
         public NodeType Type;
         public int UniqueId;
@@ -11,11 +12,12 @@ namespace NanoProfiler.Editor
         public string RemotePath;
         public List<HierarchyNode> Children = new();
         
-        public string Version;
+        public SemVersion Version;
         public string DeviceModel;
         // Trace-only fields
         public string SessionId;
-        public DateTime Date;
+        public DateTime CreateTimestamp;
+        public DateTime? UploadTimestamp;
         public ulong SizeBytes;
         public bool IsDownloaded;
         public string LocalPath;

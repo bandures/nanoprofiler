@@ -71,7 +71,7 @@ namespace NanoProfiler
         private readonly Dictionary<string, ActivityInfo> _activities = new();
         private readonly Dictionary<int, ulong> _openActivities = new();
         private readonly Dictionary<uint, CounterInfo> _counters = new();
-        private readonly Dictionary<int, ulong> _threadTracks = new();
+        private readonly Dictionary<int, PerfettoThreadScope> _threadTracks = new();
         private readonly long _dynamicScopesTriggerThresholdTicks;
         private readonly long _dynamicScopesCooldownTicks;
         private readonly StringBuilder _stringBuilder = new(256);
@@ -183,15 +183,8 @@ namespace NanoProfiler
             }
             else
             {
-                var uuid = GetOrCreateInternedData(msg.MarkerId, null, out var internedData);
-                var trackId = GetOrCreateThreadTrack(threadId);
-                
-                var trackEvent = _fileWriter.GetTrackEvent();
-                trackEvent.Type = TrackEvent.Types.Type.SliceBegin;
-                trackEvent.NameIid = uuid;
-                trackEvent.TrackUuid = trackId;
-                
-                _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, internedData, true);
+                var threadScope = GetOrCreateThreadScope(threadId);
+                threadScope.Begin(ref msg);
             }
         }
 
@@ -206,13 +199,8 @@ namespace NanoProfiler
             }
             else
             {
-                var trackId = GetOrCreateThreadTrack(threadId);
-                
-                var trackEvent = _fileWriter.GetTrackEvent();
-                trackEvent.Type = TrackEvent.Types.Type.SliceEnd;
-                trackEvent.TrackUuid = trackId;
-
-                _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, null, false);
+                var threadScope = GetOrCreateThreadScope(threadId);
+                threadScope.End(ref msg);
             }
         }
         
@@ -286,13 +274,16 @@ namespace NanoProfiler
             _frameIndex++;
 
             var startupFrame = _frameIndex <= _settings.StartupFramesToWrite;
-            var spikeFrame = msg.Timestamp - _lastFrameTimestamp > _dynamicScopesTriggerThresholdTicks;
+            var spikeFrame = (msg.Timestamp - _lastFrameTimestamp) > _dynamicScopesTriggerThresholdTicks;
             if (_settings.DynamicScopes && 
                 _frameRecorder is { IsValid: true } && 
-                (spikeFrame && msg.Timestamp > _frameRecorderDisableUntilTimestamp || startupFrame))
+                ((spikeFrame && msg.Timestamp > _frameRecorderDisableUntilTimestamp) || startupFrame))
             {
                 ReplayFrameBuffer();
                 _frameRecorderDisableUntilTimestamp = msg.Timestamp + _dynamicScopesCooldownTicks;
+
+                foreach (var threadScope in _threadTracks.Values)
+                    threadScope.FrameEnd(msg.Timestamp);
             }
             
             _lastFrameTimestamp = msg.Timestamp;
@@ -335,15 +326,8 @@ namespace NanoProfiler
                         Protocol.ScopeBegin msg = default;
                         if (_frameRecorder.Read(ref position, ref msg))
                         {
-                            var uuid = GetOrCreateInternedData(msg.MarkerId, null, out var internedData);
-                            var trackId = GetOrCreateThreadTrack(threadId);
-                            
-                            var trackEvent = _fileWriter!.GetTrackEvent();
-                            trackEvent.Type = TrackEvent.Types.Type.SliceBegin;
-                            trackEvent.NameIid = uuid;
-                            trackEvent.TrackUuid = trackId;
-                            
-                            _fileWriter!.AddTimestampEvent(trackEvent, msg.Timestamp, internedData, true);
+                            var threadScope = GetOrCreateThreadScope(threadId);
+                            threadScope.Begin(ref msg);
                         }
                         break;
                     }
@@ -352,13 +336,8 @@ namespace NanoProfiler
                         Protocol.ScopeEnd msg = default;
                         if (_frameRecorder.Read(ref position, ref msg))
                         {
-                            var trackId = GetOrCreateThreadTrack(threadId);
-                            
-                            var trackEvent = _fileWriter!.GetTrackEvent();
-                            trackEvent.Type = TrackEvent.Types.Type.SliceEnd;
-                            trackEvent.TrackUuid = trackId;
-                            
-                            _fileWriter!.AddTimestampEvent(trackEvent, msg.Timestamp, null, false);
+                            var threadScope = GetOrCreateThreadScope(threadId);
+                            threadScope.End(ref msg);
                         }
                         break;
                     }
@@ -369,17 +348,17 @@ namespace NanoProfiler
             }
         }
         
-        private ulong GetOrCreateThreadTrack(int threadId)
+        internal PerfettoThreadScope GetOrCreateThreadScope(int threadId)
         {
-            if (_threadTracks.TryGetValue(threadId, out var trackId))
-                return trackId;
+            if (_threadTracks.TryGetValue(threadId, out var threadScope))
+                return threadScope;
             
-            trackId = _fileWriter!.AddThreadTrack(threadId, $"Thread {threadId}", _scopeRootTrackId);
-            _threadTracks[threadId] = trackId;
-            return trackId;
+            threadScope = new PerfettoThreadScope(this, _fileWriter!, threadId, _scopeRootTrackId);
+            _threadTracks[threadId] = threadScope;
+            return threadScope;
         }
 
-        private ulong GetOrCreateInternedData(in uint markerId, in string? customName, out InternedData? internedData)
+        internal ulong GetOrCreateInternedData(in uint markerId, in string? customName, out InternedData? internedData)
         {
             if (!_markers.TryGetValue(markerId, out var markerInfo))
             {

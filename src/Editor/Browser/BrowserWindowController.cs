@@ -1,18 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.RegularExpressions;
+using System.Linq;
 using System.Threading.Tasks;
+using Semver;
 using UnityEngine;
 
 namespace NanoProfiler.Editor
 {
-    public class BrowserWindowController
+    internal class BrowserWindowController
     {
-        private const string SEM_VER_PATTERN = @"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$";        
         private readonly GoogleCloudService _service;
         private readonly List<HierarchyNode> _hierarchy;
-        private readonly Regex _semVerRegex;
         private readonly PerfettoHost _perfettoHost;
         private int _lastId = 0;
         
@@ -20,7 +19,6 @@ namespace NanoProfiler.Editor
         {
             _service = new GoogleCloudService();
             _hierarchy = new List<HierarchyNode>();
-            _semVerRegex = new Regex(SEM_VER_PATTERN, RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant);
             
             var absolute = Path.GetFullPath("Packages/com.meowtron.nanoprofiler/PerfettoUI~");
             _perfettoHost = new PerfettoHost(absolute);
@@ -30,12 +28,15 @@ namespace NanoProfiler.Editor
         {
             _hierarchy.Clear();
             
+            var versions = new List<HierarchyNode>();
             var remoteVersions = await _service.ListVersionsAsync();
             foreach (var remotePath in remoteVersions)
             {
                 var name = Path.GetFileName(remotePath.TrimEnd('/'));
                 
-                if (!_semVerRegex.IsMatch(name))
+                if (!SemVersion.TryParse(name, SemVersionStyles.Any, out var version))
+                    continue;
+                if (version.Major > 1024)
                     continue;
                 
                 var versionNode = new HierarchyNode 
@@ -44,13 +45,15 @@ namespace NanoProfiler.Editor
                     UniqueId = _lastId++,
                     Name = name, 
                     RemotePath = remotePath,
-                    Version = name
+                    Version = version
                 };
-                _hierarchy.Add(versionNode);
+                versions.Add(versionNode);
 
                 // Extra increment for a fake child to show expand arrow
                 _lastId++;
             }
+            
+            _hierarchy.AddRange(versions.OrderByDescending(x => x.Version));
             
             return _hierarchy;
         }
@@ -108,7 +111,8 @@ namespace NanoProfiler.Editor
                     Version = deviceNode.Version,
                     DeviceModel = deviceNode.DeviceModel,
                     SessionId = sessionId,
-                    Date = date,
+                    CreateTimestamp = date,
+                    UploadTimestamp = traceInfo.Timestamp,
                     SizeBytes = traceInfo.SizeBytes,
                     IsDownloaded = _service.IsTraceDownloaded(traceInfo.RemotePath),
                     LocalPath = _service.GetTraceLocalPath(traceInfo.RemotePath)

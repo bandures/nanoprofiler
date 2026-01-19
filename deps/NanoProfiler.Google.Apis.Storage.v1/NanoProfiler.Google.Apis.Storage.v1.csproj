@@ -10,6 +10,7 @@
     <PackageReference Include="Google.Cloud.Storage.V1" Version="4.10.0" />
     <PackageReference Include="ILRepack" Version="2.0.18" PrivateAssets="All" GeneratePathProperty="true" />
     
+    <PackageReference Include="Semver" Version="2.3.0" />
     <PackageReference Include="System.Memory" Version="4.5.5" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
     <PackageReference Include="System.Buffers" Version="4.5.1" />
@@ -30,19 +31,18 @@
       <InputAssemblies Include="$(TargetDir)Google.Api.Gax.dll" />
       <InputAssemblies Include="$(TargetDir)Google.Api.Gax.Rest.dll" />
 
-      <!--<InputAssemblies Include="$(TargetDir)System.Runtime.CompilerServices.Unsafe.dll" />-->
       <InputAssemblies Include="$(TargetDir)System.Memory.dll" />
       <InputAssemblies Include="$(TargetDir)System.Buffers.dll" />
       <InputAssemblies Include="$(TargetDir)System.Numerics.Vectors.dll" />
-      <!--<InputAssemblies Include="$(TargetDir)System.ValueTuple.dll" />-->
       <InputAssemblies Include="$(TargetDir)System.Management.dll" />
       <InputAssemblies Include="$(TargetDir)System.CodeDom.dll" />
       <InputAssemblies Include="$(TargetDir)Microsoft.Extensions.DependencyInjection.Abstractions.dll" />
       <InputAssemblies Include="$(TargetDir)System.Diagnostics.DiagnosticSource.dll" />
       
       <InputAssemblies Include="$(TargetDir)Microsoft.Bcl.AsyncInterfaces.dll" />
-      <!--<InputAssemblies Include="$(TargetDir)System.Threading.Tasks.Extensions.dll" />-->
       <InputAssemblies Include="$(TargetDir)Newtonsoft.Json.dll" />
+
+      <InputAssemblies Include="$(TargetDir)Semver.dll" />
     </ItemGroup>
 
     <MakeDir Directories="$(MSBuildProjectDirectory)\..\..\src\Editor\" />
