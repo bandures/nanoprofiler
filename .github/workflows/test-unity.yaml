@@ -1,0 +1,58 @@
+name: Unity Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test on ${{ matrix.unityVersion }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        unityVersion:
+          - 6000.0.0f1
+          - 6000.3.0f1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache Library
+        uses: actions/cache@v3
+        with:
+          path: tests/NanoProfiler.Unity/Library
+          key: Library-${{ matrix.unityVersion }}-${{ hashFiles('tests/NanoProfiler.Unity/Packages/manifest.json') }}
+          restore-keys: |
+            Library-${{ matrix.unityVersion }}-
+            Library-
+
+      - name: Run Edit Mode Tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: tests/NanoProfiler.Unity
+          unityVersion: ${{ matrix.unityVersion }}
+          testMode: editMode
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Play Mode Tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: tests/NanoProfiler.Unity
+          unityVersion: ${{ matrix.unityVersion }}
+          testMode: playMode
+          githubToken: ${{ secrets.GITHUB_TOKEN }}

@@ -108,4 +108,6 @@ tests/NanoProfiler.Unity/[Uu]ser[Ss]ettings/
 tests/NanoProfiler.Unity/*.sln
 tests/NanoProfiler.Unity/*.csproj
 tests/NanoProfiler.Unity/*.unitypackage
+tests/NanoProfiler.Unity/[Bb]uild/
+tests/NanoProfiler.Unity/[Bb]uilds/
 !tests/NanoProfiler.Unity/Packages/
