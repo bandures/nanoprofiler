@@ -1,6 +1,4 @@
-using NanoProfiler;
-
-namespace Meowtron.NanoProfiler.Tests.Helpers
+namespace NanoProfiler.Tests.Helpers
 {
     /// <summary>
     /// Fake processor that can count number of messages received by type

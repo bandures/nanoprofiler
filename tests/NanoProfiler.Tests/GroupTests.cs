@@ -1,17 +1,16 @@
 using System;
 using System.Linq;
-using NanoProfiler;
+using NanoProfiler.Tests.Helpers;
 using NUnit.Framework;
-using Meowtron.NanoProfiler.Tests.Helpers;
 
-namespace Meowtron.NanoProfiler.Tests
+namespace NanoProfiler.Tests
 {
-    public static class NanoGroupTests
+    public static class GroupTests
     {
         private static string MakeUniqueGroupName() => $"TestGroup-{DateTime.Now:O}";
 
         [Test]
-        public static void NanoGroup_CreatedBeforeProfilerEnabled_InfoReceived()
+        public static void Group_CreatedBeforeProfilerEnabled_InfoReceived()
         {
             var testProcessor = new GroupTestProcessor();
             var settings = new ProfilerSettingsBuilder()
@@ -30,7 +29,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test]
-        public static void NanoGroup_CreatedAfterProfilerEnabled_InfoReceived()
+        public static void Group_CreatedAfterProfilerEnabled_InfoReceived()
         {
             var testProcessor = new GroupTestProcessor();
             var settings = new ProfilerSettingsBuilder()
@@ -50,7 +49,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test]
-        public static void NanoGroup_WithDefaultGroup_AlwaysEnabled()
+        public static void Group_WithDefaultGroup_AlwaysEnabled()
         {
             var testProcessor = new CountMessagesTestProcessor();
             var settings = new ProfilerSettingsBuilder()
@@ -82,7 +81,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test]
-        public static void NanoGroup_WithDisabledGroup_NoSamplesSent()
+        public static void Group_WithDisabledGroup_NoSamplesSent()
         {
             var testProcessor = new CountMessagesTestProcessor();
             var settings = new ProfilerSettingsBuilder()
@@ -117,7 +116,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test]
-        public static void NanoGroup_WithEnabledGroup_SamplesSent()
+        public static void Group_WithEnabledGroup_SamplesSent()
         {
             var groupName = MakeUniqueGroupName();
             
@@ -154,7 +153,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test]
-        public static void NanoGroup_WithFlags_ScopeGetFlags()
+        public static void Group_WithFlags_ScopeGetFlags()
         {
             var testProcessor = new MarkerTestProcessor();
             var settings = new ProfilerSettingsBuilder()
@@ -176,7 +175,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test]
-        public static void NanoGroup_WithMultipleProfilers_DontInterfereWithEachOther()
+        public static void Group_WithMultipleProfilers_DontInterfereWithEachOther()
         {
             var run1 = MakeProfilerRun("run1");
             var run2 = MakeProfilerRun("run2");
@@ -210,7 +209,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
 
         [Test]
-        public static void NanoGroup_WithEnabledGroups_MarkedAsPreCreated()
+        public static void Group_WithEnabledGroups_MarkedAsPreCreated()
         {
             var settings = new ProfilerSettingsBuilder()
                 .EnableGroups("default", "global")
@@ -225,7 +224,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
 
         [Test]
-        public static void NanoGroup_WithPreCreated_FlagsUpdatedOnCreation()
+        public static void Group_WithPreCreated_FlagsUpdatedOnCreation()
         {
             var settings = new ProfilerSettingsBuilder()
                 .EnableGroups("g1", "g2")
@@ -243,7 +242,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
 
         [Test]
-        public static void NanoGroup_WithPreCreated_NotSentToProcessor()
+        public static void Group_WithPreCreated_NotSentToProcessor()
         {
             var testProcessor = new GroupTestProcessor();
             var settings = new ProfilerSettingsBuilder()
@@ -261,7 +260,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
 
         [Test]
-        public static void NanoGroup_WithPreCreated_SentOnCreateOnce()
+        public static void Group_WithPreCreated_SentOnCreateOnce()
         {
             var testProcessor = new GroupTestProcessor();
             var settings = new ProfilerSettingsBuilder()

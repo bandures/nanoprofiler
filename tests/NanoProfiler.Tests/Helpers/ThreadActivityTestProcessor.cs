@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
-using NanoProfiler;
 
-namespace Meowtron.NanoProfiler.Tests.Helpers
+namespace NanoProfiler.Tests.Helpers
 {
     class ThreadActivityTestProcessor :
         IProcessor<Protocol.ScopeBegin>,

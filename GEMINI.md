@@ -115,3 +115,14 @@ Code review all changes after work is complete. Review them as if these changes 
    - Entity destruction during system updates
    - Component removal scenarios
 7. **Performance Considerations**: Note when tests might need [UnityTest] for frame-dependent behavior
+
+## Recommendations
+
+1.  **Perfetto Integration**:
+    - `PerfettoProcessor` does not currently capture thread names (defaults to "Thread {id}"). Use id instead of name.
+    - Empty tracks (groups without children) may be optimized away by Perfetto Trace Processor. Ensure groups have content (e.g., counters, activities) when writing tests.
+
+2.  **Testing with Python**:
+    - When writing Python verification scripts for tests, avoid dependencies like `pandas` or `numpy` to ensure tests run in minimal environments. Use native iteration over `tp.query()` results.
+    - Put python scripts in `.py` files in `tests/NanoProfiler.Tests/Python/` for better maintainability.
+    - *NEVER* put python code inside `.cs` files.

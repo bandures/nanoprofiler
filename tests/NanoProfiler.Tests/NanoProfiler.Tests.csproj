@@ -12,7 +12,7 @@
 
     <PropertyGroup>
         <PackageId>NanoProfiler.Tests</PackageId>
-        <RootNamespace>Meowtron.NanoProfiler.Tests</RootNamespace>
+        <RootNamespace>NanoProfiler.Tests</RootNamespace>
         <LangVersion>11</LangVersion>
         <Nullable>annotations</Nullable>
         <DefaultItemExcludes>artifacts~\**;**\*.meta;**\*.asmdef;</DefaultItemExcludes>

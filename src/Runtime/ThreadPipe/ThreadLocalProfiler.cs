@@ -13,14 +13,16 @@ namespace NanoProfiler
     internal sealed class ThreadLocalProfiler : IDisposable
     {
         private const float CONTENTION_THRESHOLD = 0.8f;
-        private const int N_DEFAULT_BUFFER_SIZE = 64 * 1024;
-        private static readonly TimeSpan BlockOperationTimeout = TimeSpan.FromMinutes(1);
+        private const int DEFAULT_BUFFER_SIZE = 64 * 1024;
+        private static readonly TimeSpan FlushTimeout = TimeSpan.FromMilliseconds(500);
 
         private readonly Profiler _profiler;
         private readonly MessagePipe _pipe;
         private readonly ISerializer _messageWriter;
         private readonly ManualResetEventSlim _dataReadySignal;
-        private readonly ManualResetEventSlim _receivedByCollectorSignal;
+
+        private long _nextFenceId;
+        private long _lastCompletedFenceId;
 
         public ThreadLocalProfiler(Profiler profiler, ManualResetEventSlim dataReadySignal)
         {
@@ -28,9 +30,12 @@ namespace NanoProfiler
             _dataReadySignal = dataReadySignal;
             
             ThreadId = Thread.CurrentThread.ManagedThreadId;
-            _pipe = new MessagePipe(N_DEFAULT_BUFFER_SIZE);
+            
+            _nextFenceId = 0;
+            _lastCompletedFenceId = -1;
+            
+            _pipe = new MessagePipe(DEFAULT_BUFFER_SIZE);
             _messageWriter = _pipe.Writer;
-            _receivedByCollectorSignal = new ManualResetEventSlim(false);
             
             profiler.RegisterThread(this);
         }
@@ -47,18 +52,13 @@ namespace NanoProfiler
         
         public ISerializer MessageReader => _pipe.Reader;
         
-        /// <summary>
-        /// Signal sent **to** ThreadLocalProfiler that it can start producing again
-        /// </summary>
-        public ManualResetEventSlim ReceivedByCollectorSignal => _receivedByCollectorSignal;
-        
         public void GetStatistics(out long transferredBytes, out long discardedBytes)
         {
             _pipe.GetStatistics(out transferredBytes, out discardedBytes);
         }
 
         /// <summary>
-        /// Emits profiler capture start message to the message pipe
+        /// Emits a profiler capture start message to the message pipe
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EmitCaptureStart()
@@ -66,11 +66,11 @@ namespace NanoProfiler
             // Compared to other messages, CaptureStart can be emitted on disabled thread profiler
             
             Protocol.CaptureStart message = new () { ProcessId = Process.GetCurrentProcess().Id, Timestamp = Stopwatch.GetTimestamp() };
-            WithGuaranteedCollection(() => Write(Protocol.MessageType.CaptureStart, ref message));
+            WriteGuaranteed(Protocol.MessageType.CaptureStart, ref message);
         }
 
         /// <summary>
-        /// Emits profiler capture stop message to the message pipe
+        /// Emits a profiler capture stop message to the message pipe
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EmitCaptureStop()
@@ -79,7 +79,7 @@ namespace NanoProfiler
                 return;
 
             Protocol.CaptureStop message = new () { Timestamp = Stopwatch.GetTimestamp() };
-            WithGuaranteedCollection(() => Write(Protocol.MessageType.CaptureStop, ref message));
+            WriteGuaranteed(Protocol.MessageType.CaptureStop, ref message);
         }
         
         /// <summary>
@@ -92,7 +92,7 @@ namespace NanoProfiler
                 return;
 
             Protocol.Frame message = new () { Timestamp = Stopwatch.GetTimestamp() };
-            WithGuaranteedCollection(() => Write(Protocol.MessageType.Frame, ref message));
+            WriteGuaranteed(Protocol.MessageType.Frame, ref message);
         }
 
         /// <summary>
@@ -105,14 +105,14 @@ namespace NanoProfiler
                 return;
             
             Protocol.RegisterMarker message = new () { MarkerId = markerId, GroupId = groupId, Name = name, Flags = flags };
-            WithGuaranteedCollection(() => Write(Protocol.MessageType.RegisterMarker, ref message));
+            WriteGuaranteed(Protocol.MessageType.RegisterMarker, ref message);
         }
         
         /// <summary>
-        /// Emits marker begin message with a timestamp to the message pipe 
+        /// Emits a scope begin message with a timestamp to the message pipe 
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void EmitBeginMarker(uint markerId)
+        public void EmitBeginScope(uint markerId)
         {
             if (!Enabled)
                 return;
@@ -122,10 +122,10 @@ namespace NanoProfiler
         }
 
         /// <summary>
-        /// Emits marker end message with a timestamp to the message pipe
+        /// Emits a scope end message with a timestamp to the message pipe
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void EmitEndMarker(uint markerId)
+        public void EmitEndScope(uint markerId)
         {
             if (!Enabled)
                 return;
@@ -135,7 +135,7 @@ namespace NanoProfiler
         }
 
         /// <summary>
-        /// Emits marker begin message with a timestamp to the message pipe 
+        /// Emits an activity begin message with a timestamp to the message pipe 
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int EmitBeginActivity(uint markerId, ref TypedAttribute param1, ref TypedAttribute param2, ref TypedAttribute param3)
@@ -157,7 +157,7 @@ namespace NanoProfiler
         }
 
         /// <summary>
-        /// Emits marker end message with a timestamp to the message pipe
+        /// Emits an activity end message with a timestamp to the message pipe
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EmitEndActivity(uint markerId, int uniqueId)
@@ -201,20 +201,53 @@ namespace NanoProfiler
                 return;
             
             Protocol.RegisterGroup message = new () { GroupId = groupId, Name = name, Flags = flags };
-            WithGuaranteedCollection(() => Write(Protocol.MessageType.RegisterGroup, ref message));
+            WriteGuaranteed(Protocol.MessageType.RegisterGroup, ref message);
         }
 
         /// <summary>
-        /// Emits a flush message to synchronize thread profiler and the Collector
+        /// Emits a flush message to synchronize the thread profiler and the Collector
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void EmitFlush()
+        public long EmitFence()
         {
             if (!Enabled)
-                return;
+                return Profiler.INVALID_ID;
             
-            Protocol.Flush message = new ();
-            WithGuaranteedCollection(() => Write(Protocol.MessageType.Flush, ref message));
+            Protocol.Fence message = new () { FenceId = _nextFenceId++ };
+            WriteGuaranteed(Protocol.MessageType.Fence, ref message);
+
+            return message.FenceId;
+        }
+        
+        public void SetFenceCompleted(long fenceId)
+        {
+            var prevFenceId = Interlocked.Exchange(ref _lastCompletedFenceId, fenceId);
+            if (prevFenceId >= fenceId)
+            {
+                throw new InvalidOperationException($"Attempt to set fence {fenceId} as completed, but last completed fence is {prevFenceId}");
+            }
+        }
+        
+        public bool WaitForFence(long fenceId, TimeSpan timeout)
+        {
+            if (!Enabled)
+                return true;
+
+            var spin = new SpinWait();
+            var sw = Stopwatch.StartNew();
+            var timeoutMs = (long)timeout.TotalMilliseconds;
+            while ((Interlocked.Read(ref _lastCompletedFenceId) < fenceId) && (sw.ElapsedMilliseconds < timeoutMs))
+            {
+                _dataReadySignal.Set();
+                spin.SpinOnce();
+            }
+
+            return false;
+        }
+
+        public void Flush()
+        {
+            WaitForFence(EmitFence(), FlushTimeout);
         }
         
         /// <summary>
@@ -233,18 +266,15 @@ namespace NanoProfiler
         }
         
         /// <summary>
-        /// Helper method for messages which are needs to have guaranteed delivery
-        /// and so might be blocking if pipe is full. 
+        /// Writes the message to pipe, signal the collector and yields the thread if the message hasn't been written
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void WithGuaranteedCollection(Func<bool> action)
+        private void WriteGuaranteed<T>(Protocol.MessageType messageType, ref T value) where T : Protocol.IMessage
         {
-            _receivedByCollectorSignal.Reset();
-            while (!action())
+            var spin = new SpinWait();
+            while (!Write(messageType, ref value))
             {
-                if (!_receivedByCollectorSignal.Wait(BlockOperationTimeout))
-                    throw new TimeoutException();
-                _receivedByCollectorSignal.Reset();
+                spin.SpinOnce();
             }
         }
     }

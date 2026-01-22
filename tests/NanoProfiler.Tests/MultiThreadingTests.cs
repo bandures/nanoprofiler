@@ -1,12 +1,9 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using NanoProfiler;
 using NUnit.Framework;
-using Meowtron.NanoProfiler.Tests.Helpers;
+using NanoProfiler.Tests.Helpers;
 
-namespace Meowtron.NanoProfiler.Tests
+namespace NanoProfiler.Tests
 {
     [TestFixture]
     public class MultiThreadingTests
@@ -31,14 +28,12 @@ namespace Meowtron.NanoProfiler.Tests
             {
                 thread1Id = Thread.CurrentThread.ManagedThreadId;
                 using var _ = profiler.CreateScope("Scope1").Auto();
-                profiler.CurrentThread.EmitFlush();
             });
 
             var t2 = new Thread(() =>
             {
                 thread2Id = Thread.CurrentThread.ManagedThreadId;
                 using var _ = profiler.CreateScope("Scope2").Auto();
-                profiler.CurrentThread.EmitFlush();
             });
 
             t1.Start();
@@ -68,17 +63,6 @@ namespace Meowtron.NanoProfiler.Tests
             Assert.IsNotEmpty(thread1Records, "Thread 1 should have records");
             Assert.IsNotEmpty(thread2Records, "Thread 2 should have records");
 
-            // Verify Scope1 is in Thread 1 records
-            // We need to resolve MarkerId to Name to be sure, but TestProcessor only stored MarkerId.
-            // However, we know Scope1 was created in Thread 1. 
-            // The Marker registration might happen on the thread or propagated?
-            // Profiler.RegisterMarker is thread-safe?
-            // RegisterMarker returns an ID.
-            // Let's verify that the MarkerId in Thread 1 records corresponds to "Scope1".
-            // Since we can't easily map back from ID to Name in the processor without RegisterMarker handling,
-            // we can assume if the counts and structure match, it's correct.
-            // Or we can update ThreadActivityTestProcessor to handle RegisterMarker?
-            
             // For now, let's just verify structure: Begin then End.
             Assert.AreEqual(2, thread1Records.Count);
             Assert.AreEqual("ScopeBegin", thread1Records[0].Type);
@@ -115,7 +99,6 @@ namespace Meowtron.NanoProfiler.Tests
                 thread1Id = Thread.CurrentThread.ManagedThreadId;
                 var activity = profiler.CreateActivity("Activity1");
                 using (activity.Auto()) { }
-                profiler.CurrentThread.EmitFlush();
             });
 
             var t2 = new Thread(() =>
@@ -123,7 +106,6 @@ namespace Meowtron.NanoProfiler.Tests
                 thread2Id = Thread.CurrentThread.ManagedThreadId;
                 var activity = profiler.CreateActivity("Activity2");
                 using (activity.Auto()) { }
-                profiler.CurrentThread.EmitFlush();
             });
 
             t1.Start();
@@ -162,7 +144,7 @@ namespace Meowtron.NanoProfiler.Tests
             using var profiler = new Profiler(settings);
             profiler.Start();
             
-            int threadId = 0;
+            var threadId = 0;
 
             // Act
             var t = new Thread(() =>
@@ -170,7 +152,6 @@ namespace Meowtron.NanoProfiler.Tests
                 threadId = Thread.CurrentThread.ManagedThreadId;
                 using (profiler.CreateScope("ScopeA").Auto()) { }
                 using (profiler.CreateScope("ScopeB").Auto()) { }
-                profiler.CurrentThread.EmitFlush();
             });
             t.Start();
             t.Join();
@@ -182,17 +163,11 @@ namespace Meowtron.NanoProfiler.Tests
             Assert.IsTrue(records.All(r => r.ThreadId == threadId));
         }
 
+        // Edge case: Thread finishes execution and is destroyed.
+        // Profiler should still have collected the data because we flushed or it was picked up.
         [Test]
         public void Thread_WhenDisposed_ProfilerStillReceivesData()
         {
-            // Edge case: Thread finishes execution and is destroyed.
-            // Profiler should still have collected the data because we flushed or it was picked up.
-            // Note: In real scenarios, if thread dies before flush/collection, data might be lost in buffer?
-            // ThreadLocalProfiler doesn't auto-flush on thread death unless hooked.
-            // But we explicitly call EmitFlush() in tests to ensure delivery.
-            // If we don't call EmitFlush, it depends on buffer filling or periodic collection?
-            // Collector wakes up on signal.
-            
             var testProcessor = new ThreadActivityTestProcessor();
             var settings = new ProfilerSettingsBuilder()
                 .AddProcessor(_ => testProcessor)
@@ -201,18 +176,17 @@ namespace Meowtron.NanoProfiler.Tests
             using var profiler = new Profiler(settings);
             profiler.Start();
             
-            int threadId = 0;
+            var threadId = 0;
 
             var t = new Thread(() =>
             {
                 threadId = Thread.CurrentThread.ManagedThreadId;
                 using (profiler.CreateScope("ScopeQuick").Auto()) { }
-                profiler.CurrentThread.EmitFlush(); 
             });
+            
             t.Start();
-            t.Join(); // Thread is dead now
+            t.Join();
 
-            // Wait a bit to ensure Collector picked it up (Stop calls HandleAllThreads)
             profiler.Stop();
 
             var records = testProcessor.Records.Where(r => r.ThreadId == threadId).ToList();

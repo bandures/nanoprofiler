@@ -1,4 +1,8 @@
-﻿using System;
+﻿#nullable disable
+// ReSharper disable InconsistentlySynchronizedField
+// Note: Some fields are accessed from multiple threads without locks for performance reasons.
+
+using System;
 using System.Threading;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -132,9 +136,9 @@ namespace NanoProfiler
             lock (_threads)
             {
                 // Starts collector thread, while threads are locked
-                _collector = new Collector(_threads, _processors, _dataReadySignal);
+                _collector = new Collector(_threads, _processors, _dataReadySignal, _settings.Logger);
 
-                foreach (ThreadLocalProfiler thread in _threads)
+                foreach (var thread in _threads)
                     thread.Enabled = true;
             }
 
@@ -171,8 +175,12 @@ namespace NanoProfiler
             if (!_enabled)
                 return;
             
+            // Flush all threads before stopping
+            Flush();
+            
             // Emit stop before the pipe is terminated
             CurrentThread.EmitCaptureStop();
+            CurrentThread.Flush();
 
             // Disable right after stop is sent
             _enabled = false;
@@ -180,7 +188,7 @@ namespace NanoProfiler
             // Disable all thread profilers to prevent new messages from being sent
             lock (_threads)
             {
-                foreach (ThreadLocalProfiler thread in _threads)
+                foreach (var thread in _threads)
                     thread.Enabled = false;
             }
             
@@ -206,7 +214,11 @@ namespace NanoProfiler
         /// </summary>
         public void Flush()
         {
-            CurrentThread.EmitFlush();
+            lock (_threads)
+            {
+                foreach (var thread in _threads)
+                    thread.Flush();
+            }
         }
 
         /// <summary>
@@ -351,7 +363,7 @@ namespace NanoProfiler
                 _threads.Add(thread);
             }
             
-            _collector?.RegisterThreadProfiler(thread.ThreadId, thread.MessageReader, thread.ReceivedByCollectorSignal);
+            _collector?.RegisterThreadProfiler(thread);
         }
 
         private void SetupDefaultInstruments()

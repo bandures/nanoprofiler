@@ -1,16 +1,15 @@
 using System;
-using NanoProfiler;
 using NUnit.Framework;
-using Meowtron.NanoProfiler.Tests.Helpers;
+using NanoProfiler.Tests.Helpers;
 
-namespace Meowtron.NanoProfiler.Tests
+namespace NanoProfiler.Tests
 {
-    public static class NanoActivityTests
+    public static class ActivityTests
     {
         private static string MakeUniqueActivityName() => $"TestActivity-{DateTime.Now:O}";
 
         [Test, Timeout(1000)]
-        public static void NanoActivity_CreatedBeforeProfilerStarted_InfoReceived()
+        public static void Activity_CreatedBeforeProfilerStarted_InfoReceived()
         {
             var testProcessor = new MarkerTestProcessor();
             var settings = new ProfilerSettingsBuilder()
@@ -32,7 +31,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test, Timeout(1000)]
-        public static void NanoActivity_CreatedAfterProfilerStarted_InfoReceived()
+        public static void Activity_CreatedAfterProfilerStarted_InfoReceived()
         {
             var testProcessor = new MarkerTestProcessor();
             var settings = new ProfilerSettingsBuilder()
@@ -55,7 +54,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test, Timeout(1000)]
-        public static void NanoActivity_UsingActivity_MatchingMessagesCount()
+        public static void Activity_UsingActivity_MatchingMessagesCount()
         {
             var testProcessor = new CountMessagesTestProcessor();
             var settings = new ProfilerSettingsBuilder()
@@ -78,7 +77,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test, Timeout(1000)]
-        public static void NanoActivity_WithSingleActivation_MatchingUniqueId()
+        public static void Activity_WithSingleActivation_MatchingUniqueId()
         {
             var testProcessor = new ActivityTestProcessor();
             var settings = new ProfilerSettingsBuilder()
@@ -102,7 +101,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test, Timeout(1000)]
-        public static void NanoActivity_WithMultipleOverlappingActivations_MatchingUniqueId()
+        public static void Activity_WithMultipleOverlappingActivations_MatchingUniqueId()
         {
             var testProcessor = new ActivityTestProcessor();
             var settings = new ProfilerSettingsBuilder()
@@ -139,7 +138,7 @@ namespace Meowtron.NanoProfiler.Tests
         [TestCase(12)]
         [TestCase(12.0f)]
         [TestCase("Test")]
-        public static void NanoActivity_WithParams_SameValueReceived(object value)
+        public static void Activity_WithParams_SameValueReceived(object value)
         {
             var testProcessor = new ActivityTestProcessor();
             var settings = new ProfilerSettingsBuilder()

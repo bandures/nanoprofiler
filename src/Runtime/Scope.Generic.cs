@@ -17,14 +17,14 @@ namespace NanoProfiler
         {
             if (!_profiler.IsGroupEnabled(_groupId))
                 return;
-            _profiler.CurrentThread.EmitBeginMarker(_id);
+            _profiler.CurrentThread.EmitBeginScope(_id);
         }
 
         internal void End()
         {
             if (!_profiler.IsGroupEnabled(_groupId))
                 return;
-            _profiler.CurrentThread.EmitEndMarker(_id);
+            _profiler.CurrentThread.EmitEndScope(_id);
         }
     }
 }

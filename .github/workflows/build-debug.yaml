@@ -17,6 +17,12 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install perfetto
       - run: dotnet build -c Release
       - run: dotnet test -c Release
       - run: dotnet pack -c Release --no-build -p:IncludeSymbols=true -o $GITHUB_WORKSPACE/artifacts

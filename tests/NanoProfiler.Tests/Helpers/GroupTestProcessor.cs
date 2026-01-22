@@ -1,7 +1,6 @@
-using NanoProfiler;
 using System.Collections.Generic;
 
-namespace Meowtron.NanoProfiler.Tests.Helpers
+namespace NanoProfiler.Tests.Helpers
 {
     /// <summary>
     /// Fake processor that registers all group infos

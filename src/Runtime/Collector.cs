@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace NanoProfiler
 {
@@ -13,12 +14,14 @@ namespace NanoProfiler
     /// </summary>
     internal class Collector : IDisposable
     {
-        struct ThreadProfiler
+        private struct ThreadProfiler
         {
             public int ThreadId;
             public ISerializer DataSource;
-            public ManualResetEventSlim ReceivedByCollectorSignal;
+            public ThreadLocalProfiler LocalProfiler;
         }
+
+        private readonly ILogger _logger;
         
         private readonly Thread _thread;
         private readonly CancellationTokenSource _cancellationTokenSource;
@@ -28,8 +31,10 @@ namespace NanoProfiler
         
         private readonly ManualResetEventSlim _dataReadySignal;
 
-        public Collector(IEnumerable<ThreadLocalProfiler> threads, IEnumerable<IProcessorBase> processors, ManualResetEventSlim dataReadySignal)
+        public Collector(IEnumerable<ThreadLocalProfiler> threads, IEnumerable<IProcessorBase> processors, ManualResetEventSlim dataReadySignal, ILogger logger)
         {
+            _logger = logger;
+            
             _processors = new List<IProcessorBase>(processors);
 
             _dataReadySignal = dataReadySignal;
@@ -43,7 +48,7 @@ namespace NanoProfiler
                 {
                     ThreadId = thread.ThreadId,
                     DataSource = thread.MessageReader,
-                    ReceivedByCollectorSignal = thread.ReceivedByCollectorSignal
+                    LocalProfiler = thread
                 });
             }
             
@@ -64,11 +69,11 @@ namespace NanoProfiler
             _cancellationTokenSource?.Dispose();
         }
         
-        public void RegisterThreadProfiler(int threadId, ISerializer dataSource, ManualResetEventSlim receivedByCollectorSignal)
+        public void RegisterThreadProfiler(ThreadLocalProfiler localProfiler)
         {
             lock(_profilers)
             {
-                _profilers.Add(new ThreadProfiler() { ThreadId = threadId, DataSource = dataSource, ReceivedByCollectorSignal = receivedByCollectorSignal });
+                _profilers.Add(new ThreadProfiler { ThreadId = localProfiler.ThreadId, DataSource = localProfiler.MessageReader, LocalProfiler = localProfiler });
             }
             
             _dataReadySignal.Set();
@@ -97,12 +102,12 @@ namespace NanoProfiler
 
         private void HandleAllThreads()
         {
-            // To prevent race condition if new thread is started.
+            // To prevent race condition if a new thread is started.
             // This lock shouldn't be a problem as new thread creation
             // is a rare event
             lock (_profilers)
             {
-                foreach(ThreadProfiler profilerThread in _profilers)
+                foreach(var profilerThread in _profilers)
                 {
                     try
                     {
@@ -110,8 +115,7 @@ namespace NanoProfiler
                     }
                     catch (Exception e)
                     {
-                        // TODO: Should we report errors back to the profiler?
-                        Console.WriteLine(e);
+                        _logger?.LogError(e, $"Failed processing messages from thread {profilerThread.ThreadId}");
                     }
                 }
             }
@@ -159,19 +163,21 @@ namespace NanoProfiler
                     case Protocol.MessageType.ActivityEnd:
                         HandleMessage<Protocol.ActivityEnd>(profilerThread.ThreadId, profilerThread.DataSource);
                         break;
-                    case Protocol.MessageType.Flush:
-                        HandleMessage<Protocol.Flush>(profilerThread.ThreadId, profilerThread.DataSource);
+
+                    // Fence is handled directly here as it affects the thread profiler state
+                    case Protocol.MessageType.Fence:
+                    {
+                        Protocol.Fence message = new ();
+                        message.Transfer(profilerThread.DataSource);
+                        profilerThread.LocalProfiler.SetFenceCompleted(message.FenceId);
                         break;
+                    }
                                 
                     case Protocol.MessageType.None:
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
             }
-            
-            // Collector read all data sources, and they're ready
-            // to receive again.
-            profilerThread.ReceivedByCollectorSignal.Set();
         }
         
         private void HandleMessage<T>(int threadId, ISerializer reader) where T: struct, Protocol.IMessage

@@ -11,7 +11,7 @@
     <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
     <PropertyGroup>
-        <RootNamespace>Meowtron.NanoProfiler.Tests</RootNamespace>
+        <RootNamespace>NanoProfiler.Tests</RootNamespace>
         <TargetFramework>net8.0</TargetFramework>
         <DefaultItemExcludes>artifacts~\**;**\*.meta;**\*.asmdef;</DefaultItemExcludes>
         <OutputPath>$(MSBuildThisFileDirectory)artifacts~\bin\$(Configuration)\</OutputPath>

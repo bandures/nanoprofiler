@@ -1,9 +1,8 @@
 using System.IO;
-using NanoProfiler;
 using Newtonsoft.Json;
 using NUnit.Framework;
 
-namespace Meowtron.NanoProfiler.Tests
+namespace NanoProfiler.Tests
 {
     internal static class NanoChromeTraceProcessorTests
     {

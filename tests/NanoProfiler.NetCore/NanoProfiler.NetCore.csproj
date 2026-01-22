@@ -12,7 +12,7 @@
 
     <PropertyGroup>
         <PackageId>NanoProfiler.NetCore</PackageId>
-        <RootNamespace>Meowtron.NanoProfiler</RootNamespace>
+        <RootNamespace>NanoProfiler</RootNamespace>
         <LangVersion>11</LangVersion>
         <Nullable>annotations</Nullable>
         <DefaultItemExcludes>artifacts~\**;**\*.meta;**\*.asmdef;</DefaultItemExcludes>

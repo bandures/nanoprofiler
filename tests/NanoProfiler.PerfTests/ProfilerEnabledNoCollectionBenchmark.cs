@@ -1,7 +1,7 @@
 ﻿using BenchmarkDotNet.Attributes;
 using NanoProfiler;
 
-namespace Meowtron.NanoProfiler.Tests
+namespace NanoProfiler.Tests
 {
     [MemoryDiagnoser]
     public class ProfilerEnabledNoCollection

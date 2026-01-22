@@ -9,45 +9,6 @@ using Perfetto.Protos;
 
 namespace NanoProfiler
 {
-    public struct PerfettoProcessorSettings
-    {
-        /// <summary>
-        /// File name the trace will saved to. Should have .trace extension.
-        /// </summary>
-        public string FileName { get; init; } = string.Empty;
-        /// <summary>
-        /// Optional process ID to be recorded in the trace.
-        /// </summary>
-        public int ProcessId { get; init; } = 0;
-        /// <summary>
-        /// Optional process name to be recorded in the trace.
-        /// </summary>
-        public string ProcessName { get; init; } = string.Empty;
-        /// <summary>
-        /// Optimization to reduce the number of samples recorded and the final file size.
-        /// If set, samples will be recorded no more frequently than the specified rate.
-        /// </summary>
-        public TimeSpan CountersSamplingRate { get; init; } = TimeSpan.FromSeconds(1);
-        /// <summary>
-        /// Logger the processor can use to log warnings and errors.
-        /// </summary>
-        public ILogger? Logger { get; init; } = null;
-        /// <summary>
-        /// Scope events aren't logged unless certain criterial is reached.
-        /// This is useful to avoid logging a lot of events unless they are important.
-        /// F.e. Only log if the frame rate drops below a certain threshold.
-        /// </summary>
-        public bool DynamicScopes { get; init; } = false;
-        public float DynamicScopesTriggerThresholdMs { get; init; } = 50.0f;
-        public float DynamicScopesCooldownMs { get; init; } = 2000.0f;
-        public int DynamicScopesBufferSize { get; init; } = 1024 * 1024;
-        public int StartupFramesToWrite { get; init; } = 20;
-        
-        public PerfettoProcessorSettings()
-        {
-        }
-    }
-    
     public sealed class PerfettoProcessor : 
         IProcessor<Protocol.CaptureStart>,
         IProcessor<Protocol.CaptureStop>,
@@ -122,6 +83,8 @@ namespace NanoProfiler
         
         public void HandleMessage(int threadId, ref Protocol.CaptureStop msg)
         {
+            FlushCounters(msg.Timestamp);
+            
             _fileWriter?.Dispose();
             _fileWriter = null;
             _frameRecorder?.Dispose();
@@ -136,6 +99,25 @@ namespace NanoProfiler
             _openActivities.Clear();
             _counters.Clear();
             _threadTracks.Clear();
+        }
+
+        private void FlushCounters(long timestamp)
+        {
+            if (_fileWriter == null)
+                return;
+
+            foreach (var counter in _counters.Values)
+            {
+                if (!counter.HasValue)
+                    continue;
+                
+                var trackEvent = _fileWriter.GetTrackEvent();
+                trackEvent.Type = TrackEvent.Types.Type.Counter;
+                trackEvent.TrackUuid = counter.TrackId;
+                trackEvent.CounterValue = (long)counter.Value;
+            
+                _fileWriter.AddTimestampEvent(trackEvent, timestamp, null, false);
+            }
         }
 
         public void HandleMessage(int threadId, ref Protocol.RegisterGroup msg)
@@ -353,7 +335,7 @@ namespace NanoProfiler
             if (_threadTracks.TryGetValue(threadId, out var threadScope))
                 return threadScope;
             
-            threadScope = new PerfettoThreadScope(this, _fileWriter!, threadId, _scopeRootTrackId);
+            threadScope = new PerfettoThreadScope(this, _fileWriter!, _settings.ProcessId, threadId, _scopeRootTrackId);
             _threadTracks[threadId] = threadScope;
             return threadScope;
         }

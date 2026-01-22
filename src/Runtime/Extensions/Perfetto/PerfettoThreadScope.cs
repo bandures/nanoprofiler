@@ -9,13 +9,14 @@ namespace NanoProfiler
         private readonly ulong _trackId;
         private int _depth;
         
-        public PerfettoThreadScope(PerfettoProcessor processor, PerfettoFileWriter fileWriter, int threadId, ulong rootTrackId)
+        public PerfettoThreadScope(PerfettoProcessor processor, PerfettoFileWriter fileWriter, int processId, int threadId, ulong rootTrackId)
         {
             _processor = processor;
             _fileWriter = fileWriter;
             _depth = 0;
             
-            _trackId = _fileWriter.AddThreadTrack(threadId, $"Thread {threadId}", rootTrackId);
+            var threadName = threadId == 0 ? "Main Thread" : $"Thread {threadId}";
+            _trackId = _fileWriter.AddThreadTrack(processId, threadId, threadName, rootTrackId);
         }
 
         public void Begin(ref Protocol.ScopeBegin msg)

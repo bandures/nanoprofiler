@@ -2,11 +2,11 @@
 using BenchmarkDotNet.Running;
 using NanoProfiler;
 
-BenchmarkRunner.Run<Meowtron.NanoProfiler.Tests.ProfilerDisabledBenchmark>();
-BenchmarkRunner.Run<Meowtron.NanoProfiler.Tests.ProfilerEnabledBenchmark>();
-BenchmarkRunner.Run<Meowtron.NanoProfiler.Tests.ProfilerEnabledNoCollection>();
+BenchmarkRunner.Run<NanoProfiler.Tests.ProfilerDisabledBenchmark>();
+BenchmarkRunner.Run<NanoProfiler.Tests.ProfilerEnabledBenchmark>();
+BenchmarkRunner.Run<NanoProfiler.Tests.ProfilerEnabledNoCollection>();
 
-namespace Meowtron.NanoProfiler.Tests
+namespace NanoProfiler.Tests
 {
     [MemoryDiagnoser]
     public class ProfilerDisabledBenchmark

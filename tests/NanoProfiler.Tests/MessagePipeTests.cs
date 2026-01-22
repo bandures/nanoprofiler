@@ -1,10 +1,9 @@
 using System;
-using NanoProfiler;
 using NUnit.Framework;
 
-namespace Meowtron.NanoProfiler.Tests
+namespace NanoProfiler.Tests
 {
-    public static class NanoMessagePipeTests
+    public static class MessagePipeTests
     {
         [Test, Timeout(1000)]
         public static void MessagePipe_NonPow2Size_ThrowsException()

@@ -47,6 +47,7 @@ x64/
 *.pdb
 *.pgc
 *.pgd
+*.pyc
 *.rsp
 *.sbr
 *.tlb
@@ -101,7 +102,7 @@ Assets/WSATestCertificate.pfx
 .cr
 .idea
 .vsconfig
-tests/NanoProfiler.Unity/Library/*
+tests/NanoProfiler.Unity/Library/**
 tests/NanoProfiler.Unity/Temp/*
 tests/NanoProfiler.Unity/Logs/*
 tests/NanoProfiler.Unity/[Uu]ser[Ss]ettings/

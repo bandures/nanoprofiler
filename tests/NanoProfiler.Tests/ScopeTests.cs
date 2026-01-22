@@ -1,12 +1,11 @@
 using System;
 using System.Threading;
-using NanoProfiler;
 using NUnit.Framework;
-using Meowtron.NanoProfiler.Tests.Helpers;
+using NanoProfiler.Tests.Helpers;
 
-namespace Meowtron.NanoProfiler.Tests
+namespace NanoProfiler.Tests
 {
-    public static class NanoScopeTests
+    public static class ScopeTests
     {
         private static string MakeUniqueScopeName() => $"TestScope-{DateTime.Now:O}";
 
@@ -78,7 +77,7 @@ namespace Meowtron.NanoProfiler.Tests
                 marker.End();
                 
                 if (i % 200 == 0)
-                    profiler.CurrentThread.EmitFlush();
+                    profiler.CurrentThread.Flush();
             }
             profiler.Stop();
             
@@ -149,7 +148,7 @@ namespace Meowtron.NanoProfiler.Tests
                     }
                 
                     // As we're overflowing pipe, we need to sync to avoid data discard in this test
-                    profiler.CurrentThread.EmitFlush();
+                    profiler.CurrentThread.Flush();
                 }
             }
         }

@@ -1,9 +1,6 @@
 using System;
 using System.Threading;
-using System.Threading.Tasks;
-using NanoProfiler;
 using NUnit.Framework;
-using Meowtron.NanoProfiler.Tests.Helpers;
 
 namespace NanoProfiler.Tests
 {

@@ -30,14 +30,14 @@ namespace NanoProfiler
                 return;
             if (!_flags.HasFlag(MarkerFlags.DontReflectToUnity))
                 _unityProfilerMarker.Begin();
-            _profiler.CurrentThread.EmitBeginMarker(_id);
+            _profiler.CurrentThread.EmitBeginScope(_id);
         }
 
         internal void End()
         {
             if (!_profiler.IsGroupEnabled(_groupId))
                 return;
-            _profiler.CurrentThread.EmitEndMarker(_id);
+            _profiler.CurrentThread.EmitEndScope(_id);
             if (!_flags.HasFlag(MarkerFlags.DontReflectToUnity))
                 _unityProfilerMarker.End();
         }

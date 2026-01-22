@@ -2,13 +2,13 @@ using NanoProfiler;
 using System.Linq;
 using NUnit.Framework;
 
-namespace Meowtron.NanoProfiler.Tests
+namespace NanoProfiler.Tests
 {
-    public static class NanoProfilerTests
+    public static class ProfilerTests
     {
         [Test]
         // Verify that profiler can handle multiple start/stop without issues
-        public static void NanoProfiler_CreateAndDestroy_NoExceptions()
+        public static void Profiler_CreateAndDestroy_NoExceptions()
         {
             var settings = new ProfilerSettingsBuilder().Build();
             using var profiler = new Profiler(settings);
@@ -16,7 +16,7 @@ namespace Meowtron.NanoProfiler.Tests
         
         [Test]
         // Verify that profiler can handle multiple start/stop without issues
-        public static void NanoProfiler_StartMultipleTimes_NoExceptions()
+        public static void Profiler_StartMultipleTimes_NoExceptions()
         {
             const int iterationsCount = 10;
             
@@ -36,7 +36,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test]
-        public static void NanoProfiler_WithProcessor_ProcessorCreated()
+        public static void Profiler_WithProcessor_ProcessorCreated()
         {
             var settings = new ProfilerSettingsBuilder()
                 .AddProcessor(_ => new DummyProcessor())
@@ -56,7 +56,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test]
-        public static void NanoProfiler_WithService_ServiceStartsOnProfilerStart()
+        public static void Profiler_WithService_ServiceStartsOnProfilerStart()
         {
             var service = new DummyService();
             var settings = new ProfilerSettingsBuilder()
@@ -72,7 +72,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test]
-        public static void NanoProfiler_WithInheritance_RetainGroupsAndMarkers()
+        public static void Profiler_WithInheritance_RetainGroupsAndMarkers()
         {
             using var originalProfiler = new Profiler(new ProfilerSettings());
             var groupName = "g1";
@@ -100,7 +100,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
 
         [Test]
-        public static void NanoProfiler_WithSettingsLimit_OverflowInstruments()
+        public static void Profiler_WithSettingsLimit_OverflowInstruments()
         {
             const int capacity = 2; 
             

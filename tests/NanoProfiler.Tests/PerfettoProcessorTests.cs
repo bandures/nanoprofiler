@@ -4,7 +4,7 @@ using System.Text;
 using NanoProfiler;
 using NUnit.Framework;
 
-namespace Meowtron.NanoProfiler.Tests;
+namespace NanoProfiler.Tests;
 
 public static class PerfettoProcessorTests
 {

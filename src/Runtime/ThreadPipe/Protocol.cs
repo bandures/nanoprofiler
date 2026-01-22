@@ -26,7 +26,7 @@
             
             RegisterGroup,
             
-            Flush,
+            Fence,
         }
 
         public interface IMessage
@@ -81,10 +81,13 @@
             }
         }
 
-        public struct Flush : IMessage
+        public struct Fence : IMessage
         {
+            public long FenceId;
+            
             public void Transfer(ISerializer serializer)
             {
+                serializer.Transfer(ref FenceId);
             }
         }
         

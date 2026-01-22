@@ -1,17 +1,16 @@
 using System;
 using System.Threading;
-using NanoProfiler;
 using NUnit.Framework;
-using Meowtron.NanoProfiler.Tests.Helpers;
+using NanoProfiler.Tests.Helpers;
 
-namespace Meowtron.NanoProfiler.Tests
+namespace NanoProfiler.Tests
 {
-    public class NanoCounterTests
+    public class CounterTests
     {
         private static string MakeUniqueCounterName() => $"TestCounter-{DateTime.Now:O}";
 
         [Test]
-        public static void NanoCounter_CreatedBeforeProfilerEnabled_InfoReceived()
+        public static void Counter_CreatedBeforeProfilerEnabled_InfoReceived()
         {
             var testProcessor = new MarkerTestProcessor();
             var settings = new ProfilerSettingsBuilder()
@@ -32,7 +31,7 @@ namespace Meowtron.NanoProfiler.Tests
         }
         
         [Test]
-        public static void NanoCounter_CreatedAfterProfilerEnabled_InfoReceived()
+        public static void Counter_CreatedAfterProfilerEnabled_InfoReceived()
         {
             var testProcessor = new MarkerTestProcessor();
             var settings = new ProfilerSettingsBuilder()

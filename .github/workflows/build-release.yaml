@@ -35,6 +35,12 @@ jobs:
         with:
           ref: ${{ needs.update-packagejson.outputs.sha }}
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install perfetto
       # build and pack
       - run: dotnet build -c Release -p:Version=${{ inputs.tag }}
       - run: dotnet test -c Release --no-build

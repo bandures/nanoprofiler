@@ -104,20 +104,22 @@ namespace NanoProfiler
             _trace.Packet.Clear();
         }
 
-        public ulong AddProcessTrack(int processId, string? processName)
+        public ulong AddProcessTrack(int processId, string processName)
         {
             var trackId = GetNextUniqueId();
-            var packet = GetPacket();
-            var trackDescriptor = GetTrackDescriptor();
-            
-            trackDescriptor.Uuid = trackId;
-            trackDescriptor.ChildOrdering = TrackDescriptor.Types.ChildTracksOrdering.Chronological;
             
             var processDescriptor = GetProcessDescriptor();
             processDescriptor.Pid = processId;
-            processDescriptor.ProcessName = processName ?? "Process";
-            trackDescriptor.Process = processDescriptor;
+            processDescriptor.ProcessName = processName;
+            processDescriptor.ChromeProcessType = ProcessDescriptor.Types.ChromeProcessType.ProcessBrowser;
             
+            var trackDescriptor = GetTrackDescriptor();
+            trackDescriptor.Uuid = trackId;
+            trackDescriptor.ChildOrdering = TrackDescriptor.Types.ChildTracksOrdering.Chronological;
+            trackDescriptor.Process = processDescriptor;
+            trackDescriptor.Name = processName;
+            
+            var packet = GetPacket();
             packet.TrackDescriptor = trackDescriptor;
             AddPacket(packet);
             return trackId;
@@ -126,42 +128,38 @@ namespace NanoProfiler
         public ulong AddTrack(string name, ulong parentUuid = 0)
         {
             var trackId = GetNextUniqueId();
-            var packet = GetPacket();
+            
             var trackDescriptor = GetTrackDescriptor();
-            
             trackDescriptor.Uuid = trackId;
-            trackDescriptor.ChildOrdering = TrackDescriptor.Types.ChildTracksOrdering.Chronological;
             trackDescriptor.Name = name;
-            
+            trackDescriptor.ChildOrdering = TrackDescriptor.Types.ChildTracksOrdering.Chronological;
             if (parentUuid != 0)
-            {
                 trackDescriptor.ParentUuid = parentUuid;
-            }
             
+            var packet = GetPacket();
             packet.TrackDescriptor = trackDescriptor;
             AddPacket(packet);
             return trackId;
         }
 
-        public ulong AddThreadTrack(int threadId, string name, ulong parentUuid)
+        public ulong AddThreadTrack(int processId, int threadId, string name, ulong parentUuid)
         {
             var trackId = GetNextUniqueId();
-            var packet = GetPacket();
-            var trackDescriptor = GetTrackDescriptor();
-            
-            trackDescriptor.Uuid = trackId;
-            trackDescriptor.ChildOrdering = TrackDescriptor.Types.ChildTracksOrdering.Chronological;
-            
-            if (parentUuid != 0)
-            {
-                trackDescriptor.ParentUuid = parentUuid;
-            }
 
             var threadDescriptor = GetThreadDescriptor();
+            threadDescriptor.Pid = processId;
             threadDescriptor.Tid = threadId;
             threadDescriptor.ThreadName = name;
-            trackDescriptor.Thread = threadDescriptor;
             
+            var trackDescriptor = GetTrackDescriptor();
+            trackDescriptor.Uuid = trackId;
+            trackDescriptor.Name = name;
+            trackDescriptor.Thread = threadDescriptor;
+            trackDescriptor.ChildOrdering = TrackDescriptor.Types.ChildTracksOrdering.Chronological;
+            if (parentUuid != 0)
+                trackDescriptor.ParentUuid = parentUuid;
+            
+            var packet = GetPacket();
             packet.TrackDescriptor = trackDescriptor;
             AddPacket(packet);
             return trackId;
