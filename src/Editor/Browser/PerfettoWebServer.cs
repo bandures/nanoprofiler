@@ -68,7 +68,7 @@ namespace NanoProfiler.Editor
             }
 
             // Map the file to a virtual URL path
-            const string virtualFileName = "live_trace.pftrace";
+            var virtualFileName = Uri.EscapeDataString(Path.GetFileName(traceFilePath));
             lock (_virtualFileMap)
             {
                 _virtualFileMap[virtualFileName] = traceFilePath;
