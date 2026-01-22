@@ -21,6 +21,17 @@ def verify_slice_exists(tp, name):
     check(len(rows) > 0, f"Slice '{name}' not found")
     print(f"Found slice: {name}")
 
+def verify_slice_closed(tp, name):
+    print(f"Verifying slice '{name}' is closed...")
+    query = f'SELECT dur FROM slice WHERE name = "{name}"'
+    rows = list(tp.query(query))
+    if len(rows) == 0:
+        check(False, f"Slice '{name}' not found")
+    
+    dur = rows[0].dur
+    check(dur != -1 and dur >= 0, f"Slice '{name}' is not closed properly (dur={dur})")
+    print(f"Slice '{name}' is closed (dur={dur})")
+
 def verify_slice_count_prefix(tp, prefix, expected_count):
     print(f"Verifying slice count for prefix '{prefix}'...")
     query = f'SELECT name FROM slice WHERE name LIKE "{prefix}%"'

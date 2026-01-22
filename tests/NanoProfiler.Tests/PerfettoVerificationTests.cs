@@ -316,5 +316,31 @@ namespace NanoProfiler.Tests
 
             TestHelper.RunPythonVerification("MultiThread_WithGroupScopeAndActivity_ValidStream.py", tempFile.TracePath);
         }
+
+        [Test]
+        public void Scope_Unclosed_ClosedInStream()
+        {
+            using var tempFile = new TestHelper.TempFile();
+            var processor = TestHelper.SetupPerfettoProcessor(tempFile.TracePath);
+            var settings = new ProfilerSettingsBuilder()
+                .AddProcessor(_ => processor)
+                .Build();
+            
+            using (var profiler = new Profiler(settings))
+            {
+                var scope = profiler.CreateScope("UnclosedScope");
+                
+                profiler.Start();
+
+                // Open scope but don't close it explicitly
+                scope.Begin();
+                
+                TestHelper.FakeWork();
+
+                profiler.Stop();
+            }
+
+            TestHelper.RunPythonVerification("Scope_Unclosed_ClosedInStream.py", tempFile.TracePath);
+        }
     }
 }

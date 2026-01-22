@@ -85,6 +85,9 @@ namespace NanoProfiler
         {
             FlushCounters(msg.Timestamp);
             
+            foreach (var threadScope in _threadTracks.Values)
+                threadScope.CloseScopes(msg.Timestamp);
+            
             _fileWriter?.Dispose();
             _fileWriter = null;
             _frameRecorder?.Dispose();
@@ -265,7 +268,7 @@ namespace NanoProfiler
                 _frameRecorderDisableUntilTimestamp = msg.Timestamp + _dynamicScopesCooldownTicks;
 
                 foreach (var threadScope in _threadTracks.Values)
-                    threadScope.FrameEnd(msg.Timestamp);
+                    threadScope.CloseScopes(msg.Timestamp);
             }
             
             _lastFrameTimestamp = msg.Timestamp;

@@ -44,7 +44,7 @@ namespace NanoProfiler
             _depth--;
         }
 
-        public void FrameEnd(long timestamp)
+        public void CloseScopes(long timestamp)
         {
             var msg = new Protocol.ScopeEnd() { Timestamp = timestamp };
             while (_depth > 0)
