@@ -47,6 +47,24 @@ var counter = group.CreateCounter("YourCounterInAGroup");
 - Counter -  is for numeric gauge values, which can go up and down.
 - Group - allows disabling/enabling a group of scopes, activities and counters.
 
+## Perfetto
+NanoProfiler supports [Perfetto](https://perfetto.dev/) via PerfettoProcessor extension. Perfetto is open-source, portable and efficient profiling data format with web-based UI.
+Perfetto uses Google Protobuf for serialization and is compact and efficient binary format.
+
+![Perfetto Viewer.](/docs/perfetto.png)
+
+All you need is to add it as processor during setup and it'll start capturing into a file.
+```
+ProfilerSettingsBuilder settingsBuilder = new ProfilerSettingsBuilder()
+    .AddProcessor(_ => new PerfettoProcessor(new PerfettoProcessorSettings() { FileName = testFileName }));
+```
+
+## Cloud
+NanoProfiler comes with basic cloud upload and browsing. It's designed to be uploaded from a live game and browsed for later analysis.
+You can find traces broser by `Windows/Analysis/NanoProfiler Broser` in Unity Editor.
+
+![Browser View.](/docs/cloud.png)
+
 ## Implementation details
 
 Each thread that uses the profiler has a per-thread object - `ThreadLocalProfiler`. `ThreadLocalProfiler` is responsible for collecting all information on its thread. That is needed for two reasons:
@@ -69,4 +87,3 @@ When `ThreadLocalProfiler` is running out of ring buffer space, it signals the C
 - Frame end event
 - New marker
 - etc
-
