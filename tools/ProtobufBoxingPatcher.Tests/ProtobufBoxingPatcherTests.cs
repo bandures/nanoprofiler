@@ -100,43 +100,55 @@ public class ProtobufBoxingPatcherTests
 
     #endregion
 
-    #region MultiValueType
+    #region MultiValueType (union struct)
 
     [Test]
-    public void MultiValueType_FieldDeclaration_ReplacedWithTypedFields()
+    public void MultiValueType_GeneratesUnionStruct()
     {
         var input = BuildMultiTypeOneof();
 
         var result = _patcher.PatchContent(input);
 
-        Assert.That(result, Does.Contain("private long counterValueField_Int64_;"));
-        Assert.That(result, Does.Contain("private double counterValueField_Double_;"));
+        Assert.That(result, Does.Contain(
+            "[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit)]"));
+        Assert.That(result, Does.Contain("private struct CounterValueFieldUnion"));
+        Assert.That(result, Does.Contain("[System.Runtime.InteropServices.FieldOffset(0)] public long Int64;"));
+        Assert.That(result, Does.Contain("[System.Runtime.InteropServices.FieldOffset(0)] public double Double;"));
+    }
+
+    [Test]
+    public void MultiValueType_FieldDeclaration_UsesUnionType()
+    {
+        var input = BuildMultiTypeOneof();
+
+        var result = _patcher.PatchContent(input);
+
+        Assert.That(result, Does.Contain("private CounterValueFieldUnion counterValueField_;"));
         Assert.That(result, Does.Not.Contain("private object counterValueField_;"));
     }
 
     [Test]
-    public void MultiValueType_Getter_RedirectedToTypedField()
+    public void MultiValueType_Getter_UsesUnionMemberAccess()
     {
         var input = BuildMultiTypeOneof();
 
         var result = _patcher.PatchContent(input);
 
-        Assert.That(result, Does.Contain("HasCounterValue ? counterValueField_Int64_ : 0L"));
-        Assert.That(result, Does.Contain("HasDoubleCounterValue ? counterValueField_Double_ : 0D"));
+        Assert.That(result, Does.Contain("HasCounterValue ? counterValueField_.Int64 : 0L"));
+        Assert.That(result, Does.Contain("HasDoubleCounterValue ? counterValueField_.Double : 0D"));
         Assert.That(result, Does.Not.Contain("(long) counterValueField_"));
         Assert.That(result, Does.Not.Contain("(double) counterValueField_"));
     }
 
     [Test]
-    public void MultiValueType_Setter_RedirectedToTypedField()
+    public void MultiValueType_Setter_UsesUnionMemberAccess()
     {
         var input = BuildMultiTypeOneof();
 
         var result = _patcher.PatchContent(input);
 
-        Assert.That(result, Does.Contain("counterValueField_Int64_ = value;"));
-        Assert.That(result, Does.Contain("counterValueField_Double_ = value;"));
-        Assert.That(result, Does.Not.Match(@"counterValueField_ = value;"));
+        Assert.That(result, Does.Contain("counterValueField_.Int64 = value;"));
+        Assert.That(result, Does.Contain("counterValueField_.Double = value;"));
     }
 
     [Test]
@@ -151,23 +163,37 @@ public class ProtobufBoxingPatcherTests
             "counterValueFieldCase_ = CounterValueFieldOneofCase.None;"));
     }
 
+    [Test]
+    public void MultiValueType_CaseEnumAssignment_Preserved()
+    {
+        var input = BuildMultiTypeOneof();
+
+        var result = _patcher.PatchContent(input);
+
+        Assert.That(result, Does.Contain(
+            "counterValueFieldCase_ = CounterValueFieldOneofCase.CounterValue;"));
+        Assert.That(result, Does.Contain(
+            "counterValueFieldCase_ = CounterValueFieldOneofCase.DoubleCounterValue;"));
+    }
+
     #endregion
 
-    #region MixedTypes
+    #region MixedTypes (single value type → separate field)
 
     [Test]
-    public void MixedTypes_FieldDeclaration_ObjectKeptAndTypedFieldAdded()
+    public void MixedTypes_SingleValueType_ObjectRemovedAndTypedFieldsAdded()
     {
         var input = BuildMixedTypeOneof();
 
         var result = _patcher.PatchContent(input);
 
-        Assert.That(result, Does.Contain("private object nameField_;"));
+        Assert.That(result, Does.Not.Contain("private object nameField_;"));
         Assert.That(result, Does.Contain("private ulong nameField_UInt64_;"));
+        Assert.That(result, Does.Contain("private string nameField_String_;"));
     }
 
     [Test]
-    public void MixedTypes_ValueTypeGetter_RedirectedToTypedField()
+    public void MixedTypes_SingleValueType_ValueGetter_RedirectedToTypedField()
     {
         var input = BuildMixedTypeOneof();
 
@@ -178,17 +204,18 @@ public class ProtobufBoxingPatcherTests
     }
 
     [Test]
-    public void MixedTypes_ReferenceTypeGetter_Unchanged()
+    public void MixedTypes_SingleValueType_ReferenceGetter_RedirectedToTypedField()
     {
         var input = BuildMixedTypeOneof();
 
         var result = _patcher.PatchContent(input);
 
-        Assert.That(result, Does.Contain("HasName ? (string) nameField_ : \"\""));
+        Assert.That(result, Does.Contain("HasName ? nameField_String_ : \"\""));
+        Assert.That(result, Does.Not.Contain("(string) nameField_"));
     }
 
     [Test]
-    public void MixedTypes_ValueTypeSetter_RedirectedToTypedField()
+    public void MixedTypes_SingleValueType_ValueSetter_RedirectedToTypedField()
     {
         var input = BuildMixedTypeOneof();
 
@@ -198,45 +225,118 @@ public class ProtobufBoxingPatcherTests
     }
 
     [Test]
-    public void MixedTypes_ReferenceTypeSetter_Unchanged()
+    public void MixedTypes_SingleValueType_ReferenceSetter_RedirectedToTypedField()
     {
         var input = BuildMixedTypeOneof();
 
         var result = _patcher.PatchContent(input);
 
         Assert.That(result, Does.Contain(
+            "nameField_String_ = pb::ProtoPreconditions.CheckNotNull(value, \"value\");"));
+        Assert.That(result, Does.Not.Contain(
             "nameField_ = pb::ProtoPreconditions.CheckNotNull(value, \"value\");"));
     }
 
     [Test]
-    public void MixedTypes_Clear_NullAssignmentKept()
+    public void MixedTypes_SingleValueType_Clear_NullRedirectedToRefField()
     {
         var input = BuildMixedTypeOneof();
 
         var result = _patcher.PatchContent(input);
 
-        Assert.That(result, Does.Contain("nameField_ = null;"));
+        Assert.That(result, Does.Not.Contain("nameField_ = null;"));
+        Assert.That(result, Does.Contain("nameField_String_ = null;"));
     }
 
+    #endregion
+
+    #region MixedTypes (multiple value types → union struct)
+
     [Test]
-    public void MixedTypes_ManyValueTypes_AllHandled()
+    public void MixedTypes_MultiValueType_GeneratesUnionStruct()
     {
         var input = BuildComplexMixedOneof();
 
         var result = _patcher.PatchContent(input);
 
-        Assert.That(result, Does.Contain("private object value_;"));
-        Assert.That(result, Does.Contain("private bool value_Bool_;"));
-        Assert.That(result, Does.Contain("private ulong value_UInt64_;"));
-        Assert.That(result, Does.Contain("private long value_Int64_;"));
-        Assert.That(result, Does.Contain("private double value_Double_;"));
+        Assert.That(result, Does.Contain("private struct ValueUnion"));
+        Assert.That(result, Does.Contain("[System.Runtime.InteropServices.FieldOffset(0)] public bool Bool;"));
+        Assert.That(result, Does.Contain("[System.Runtime.InteropServices.FieldOffset(0)] public ulong UInt64;"));
+        Assert.That(result, Does.Contain("[System.Runtime.InteropServices.FieldOffset(0)] public long Int64;"));
+        Assert.That(result, Does.Contain("[System.Runtime.InteropServices.FieldOffset(0)] public double Double;"));
+    }
 
-        Assert.That(result, Does.Contain("HasBoolValue ? value_Bool_ : false"));
-        Assert.That(result, Does.Contain("HasUintValue ? value_UInt64_ : 0UL"));
-        Assert.That(result, Does.Contain("HasIntValue ? value_Int64_ : 0L"));
-        Assert.That(result, Does.Contain("HasDoubleValue ? value_Double_ : 0D"));
+    [Test]
+    public void MixedTypes_MultiValueType_ObjectRemovedAndTypedFieldsAdded()
+    {
+        var input = BuildComplexMixedOneof();
 
-        Assert.That(result, Does.Contain("HasStringValue ? (string) value_ : \"\""));
+        var result = _patcher.PatchContent(input);
+
+        Assert.That(result, Does.Not.Contain("private object value_;"));
+        Assert.That(result, Does.Contain("private ValueUnion valueUnion_;"));
+        Assert.That(result, Does.Contain("private string value_String_;"));
+    }
+
+    [Test]
+    public void MixedTypes_MultiValueType_ValueGetters_UseUnionMemberAccess()
+    {
+        var input = BuildComplexMixedOneof();
+
+        var result = _patcher.PatchContent(input);
+
+        Assert.That(result, Does.Contain("HasBoolValue ? valueUnion_.Bool : false"));
+        Assert.That(result, Does.Contain("HasUintValue ? valueUnion_.UInt64 : 0UL"));
+        Assert.That(result, Does.Contain("HasIntValue ? valueUnion_.Int64 : 0L"));
+        Assert.That(result, Does.Contain("HasDoubleValue ? valueUnion_.Double : 0D"));
+    }
+
+    [Test]
+    public void MixedTypes_MultiValueType_ReferenceGetter_RedirectedToTypedField()
+    {
+        var input = BuildComplexMixedOneof();
+
+        var result = _patcher.PatchContent(input);
+
+        Assert.That(result, Does.Contain("HasStringValue ? value_String_ : \"\""));
+        Assert.That(result, Does.Not.Contain("(string) value_"));
+    }
+
+    [Test]
+    public void MixedTypes_MultiValueType_ValueSetters_UseUnionMemberAccess()
+    {
+        var input = BuildComplexMixedOneof();
+
+        var result = _patcher.PatchContent(input);
+
+        Assert.That(result, Does.Contain("valueUnion_.Bool = value;"));
+        Assert.That(result, Does.Contain("valueUnion_.UInt64 = value;"));
+        Assert.That(result, Does.Contain("valueUnion_.Int64 = value;"));
+        Assert.That(result, Does.Contain("valueUnion_.Double = value;"));
+    }
+
+    [Test]
+    public void MixedTypes_MultiValueType_ReferenceSetter_RedirectedToTypedField()
+    {
+        var input = BuildComplexMixedOneof();
+
+        var result = _patcher.PatchContent(input);
+
+        Assert.That(result, Does.Contain(
+            "value_String_ = pb::ProtoPreconditions.CheckNotNull(value, \"value\");"));
+        Assert.That(result, Does.Not.Contain(
+            "value_ = pb::ProtoPreconditions.CheckNotNull(value, \"value\");"));
+    }
+
+    [Test]
+    public void MixedTypes_MultiValueType_Clear_NullRedirectedToRefField()
+    {
+        var input = BuildComplexMixedOneof();
+
+        var result = _patcher.PatchContent(input);
+
+        Assert.That(result, Does.Not.Contain("value_ = null;"));
+        Assert.That(result, Does.Contain("value_String_ = null;"));
     }
 
     #endregion
@@ -375,9 +475,20 @@ public class ProtobufBoxingPatcherTests
     }
 
     [Test]
-    public void PatchContent_Idempotent_MixedTypes()
+    public void PatchContent_Idempotent_MixedTypes_SingleValueType()
     {
         var input = BuildMixedTypeOneof();
+
+        var first = _patcher.PatchContent(input);
+        var second = _patcher.PatchContent(first);
+
+        Assert.That(second, Is.EqualTo(first));
+    }
+
+    [Test]
+    public void PatchContent_Idempotent_MixedTypes_MultiValueType()
+    {
+        var input = BuildComplexMixedOneof();
 
         var first = _patcher.PatchContent(input);
         var second = _patcher.PatchContent(first);
@@ -561,7 +672,7 @@ public class ProtobufBoxingPatcherTests
     }
 
     [Test]
-    public void RealPattern_TrackEventCounterValueField_Patched()
+    public void RealPattern_TrackEventCounterValueField_UsesUnion()
     {
         var input = @"
     private object counterValueField_;
@@ -602,21 +713,21 @@ public class ProtobufBoxingPatcherTests
 
         var result = _patcher.PatchContent(input);
 
-        Assert.That(result, Does.Contain("private long counterValueField_Int64_;"));
-        Assert.That(result, Does.Contain("private double counterValueField_Double_;"));
+        Assert.That(result, Does.Contain("private struct CounterValueFieldUnion"));
+        Assert.That(result, Does.Contain("private CounterValueFieldUnion counterValueField_;"));
         Assert.That(result, Does.Not.Contain("private object counterValueField_;"));
 
-        Assert.That(result, Does.Contain("HasCounterValue ? counterValueField_Int64_ : 0L"));
-        Assert.That(result, Does.Contain("HasDoubleCounterValue ? counterValueField_Double_ : 0D"));
+        Assert.That(result, Does.Contain("HasCounterValue ? counterValueField_.Int64 : 0L"));
+        Assert.That(result, Does.Contain("HasDoubleCounterValue ? counterValueField_.Double : 0D"));
 
-        Assert.That(result, Does.Contain("counterValueField_Int64_ = value;"));
-        Assert.That(result, Does.Contain("counterValueField_Double_ = value;"));
+        Assert.That(result, Does.Contain("counterValueField_.Int64 = value;"));
+        Assert.That(result, Does.Contain("counterValueField_.Double = value;"));
 
         Assert.That(result, Does.Not.Contain("counterValueField_ = null;"));
     }
 
     [Test]
-    public void RealPattern_TrackEventNameField_Patched()
+    public void RealPattern_TrackEventNameField_UsesSeparateField()
     {
         var input = @"
     private object nameField_;
@@ -657,17 +768,20 @@ public class ProtobufBoxingPatcherTests
 
         var result = _patcher.PatchContent(input);
 
-        Assert.That(result, Does.Contain("private object nameField_;"));
+        Assert.That(result, Does.Not.Contain("private object nameField_;"));
         Assert.That(result, Does.Contain("private ulong nameField_UInt64_;"));
+        Assert.That(result, Does.Contain("private string nameField_String_;"));
+        Assert.That(result, Does.Not.Contain("NameFieldUnion"));
 
         Assert.That(result, Does.Contain("HasNameIid ? nameField_UInt64_ : 0UL"));
-        Assert.That(result, Does.Contain("HasName ? (string) nameField_ : \"\""));
+        Assert.That(result, Does.Contain("HasName ? nameField_String_ : \"\""));
 
         Assert.That(result, Does.Contain("nameField_UInt64_ = value;"));
         Assert.That(result, Does.Contain(
-            "nameField_ = pb::ProtoPreconditions.CheckNotNull(value, \"value\");"));
+            "nameField_String_ = pb::ProtoPreconditions.CheckNotNull(value, \"value\");"));
 
-        Assert.That(result, Does.Contain("nameField_ = null;"));
+        Assert.That(result, Does.Not.Contain("nameField_ = null;"));
+        Assert.That(result, Does.Contain("nameField_String_ = null;"));
     }
 
     [Test]
@@ -761,10 +875,10 @@ public class ProtobufBoxingPatcherTests
         var result = _patcher.PatchContent(input);
 
         Assert.That(result, Does.Contain("private long timestamp_;"));
-        Assert.That(result, Does.Contain("private long counterValueField_Int64_;"));
-        Assert.That(result, Does.Contain("private double counterValueField_Double_;"));
+        Assert.That(result, Does.Contain("private CounterValueFieldUnion counterValueField_;"));
         Assert.That(result, Does.Contain("private ulong nameField_UInt64_;"));
-        Assert.That(result, Does.Contain("private object nameField_;"));
+        Assert.That(result, Does.Contain("private string nameField_String_;"));
+        Assert.That(result, Does.Not.Contain("private object nameField_;"));
     }
 
     [Test]
@@ -793,12 +907,12 @@ public class ProtobufBoxingPatcherTests
 
         var result = _patcher.PatchContent(input);
 
-        Assert.That(result, Does.Contain("        private long counterValueField_Int64_;"));
-        Assert.That(result, Does.Contain("        private double counterValueField_Double_;"));
+        Assert.That(result, Does.Contain("        private struct CounterValueFieldUnion"));
+        Assert.That(result, Does.Contain("        private CounterValueFieldUnion counterValueField_;"));
     }
 
     [Test]
-    public void MixedTypes_MultipleValueTypes_AllHandled()
+    public void MixedTypes_ProtoTypeDescriptor_UsesSeparateField()
     {
         var input = @"
     private object protoTypeDescriptor_;
@@ -839,17 +953,159 @@ public class ProtobufBoxingPatcherTests
 
         var result = _patcher.PatchContent(input);
 
-        Assert.That(result, Does.Contain("private object protoTypeDescriptor_;"));
+        Assert.That(result, Does.Not.Contain("private object protoTypeDescriptor_;"));
         Assert.That(result, Does.Contain("private ulong protoTypeDescriptor_UInt64_;"));
+        Assert.That(result, Does.Contain("private string protoTypeDescriptor_String_;"));
 
-        Assert.That(result, Does.Contain("HasProtoTypeName ? (string) protoTypeDescriptor_ : \"\""));
+        Assert.That(result, Does.Contain("HasProtoTypeName ? protoTypeDescriptor_String_ : \"\""));
         Assert.That(result, Does.Contain("HasProtoTypeNameIid ? protoTypeDescriptor_UInt64_ : 0UL"));
 
         Assert.That(result, Does.Contain("protoTypeDescriptor_UInt64_ = value;"));
         Assert.That(result, Does.Contain(
-            "protoTypeDescriptor_ = pb::ProtoPreconditions.CheckNotNull(value, \"value\");"));
+            "protoTypeDescriptor_String_ = pb::ProtoPreconditions.CheckNotNull(value, \"value\");"));
 
-        Assert.That(result, Does.Contain("protoTypeDescriptor_ = null;"));
+        Assert.That(result, Does.Not.Contain("protoTypeDescriptor_ = null;"));
+        Assert.That(result, Does.Contain("protoTypeDescriptor_String_ = null;"));
+    }
+
+    [Test]
+    public void MixedTypes_NullableRefSetter_RedirectedToTypedField()
+    {
+        var input = @"
+    private object value_;
+    public enum ValueOneofCase {
+      None = 0,
+      IntValue = 1,
+      NestedValue = 8,
+    }
+    private ValueOneofCase valueCase_ = ValueOneofCase.None;
+
+    public long IntValue {
+      get { return HasIntValue ? (long) value_ : 0L; }
+      set {
+        value_ = value;
+        valueCase_ = ValueOneofCase.IntValue;
+      }
+    }
+    public bool HasIntValue {
+      get { return valueCase_ == ValueOneofCase.IntValue; }
+    }
+
+    public global::Foo.NestedMsg NestedValue {
+      get { return valueCase_ == ValueOneofCase.NestedValue ? (global::Foo.NestedMsg) value_ : null; }
+      set {
+        value_ = value;
+        valueCase_ = value == null ? ValueOneofCase.None : ValueOneofCase.NestedValue;
+      }
+    }
+
+    public void ClearValue() {
+      valueCase_ = ValueOneofCase.None;
+      value_ = null;
+    }
+";
+
+        var result = _patcher.PatchContent(input);
+
+        Assert.That(result, Does.Not.Contain("private object value_;"));
+        Assert.That(result, Does.Contain("private long value_Int64_;"));
+        Assert.That(result, Does.Contain("private global::Foo.NestedMsg value_NestedMsg_;"));
+
+        Assert.That(result, Does.Contain("value_NestedMsg_ = value;"));
+        Assert.That(result, Does.Contain(
+            "valueCase_ = value == null ? ValueOneofCase.None : ValueOneofCase.NestedValue;"));
+
+        Assert.That(result, Does.Not.Contain("value_ = null;"));
+        Assert.That(result, Does.Contain("value_NestedMsg_ = null;"));
+    }
+
+    [Test]
+    public void MixedTypes_ObjectFieldFullyRemoved_NoRemainingObjectReferences()
+    {
+        var input = BuildMixedTypeOneof();
+
+        var result = _patcher.PatchContent(input);
+
+        Assert.That(result, Does.Not.Contain("private object "));
+        Assert.That(result, Does.Not.Contain("(string) nameField_"));
+        Assert.That(result, Does.Not.Contain("(ulong) nameField_"));
+
+        var nameFieldRawPattern = new System.Text.RegularExpressions.Regex(
+            @"(?<!_)nameField_(?!UInt64_|String_|Case)(?!\w)");
+        Assert.That(nameFieldRawPattern.IsMatch(result), Is.False,
+            "No bare nameField_ references should remain after patching");
+    }
+
+    [Test]
+    public void MixedTypes_MultipleRefTypes_AllGetTypedFields()
+    {
+        var input = @"
+    private object value_;
+    public enum ValueOneofCase {
+      None = 0,
+      IntValue = 1,
+      NameValue = 2,
+      DescValue = 3,
+    }
+    private ValueOneofCase valueCase_ = ValueOneofCase.None;
+
+    public long IntValue {
+      get { return HasIntValue ? (long) value_ : 0L; }
+      set {
+        value_ = value;
+        valueCase_ = ValueOneofCase.IntValue;
+      }
+    }
+    public bool HasIntValue {
+      get { return valueCase_ == ValueOneofCase.IntValue; }
+    }
+
+    public string NameValue {
+      get { return HasNameValue ? (string) value_ : """"; }
+      set {
+        value_ = pb::ProtoPreconditions.CheckNotNull(value, ""value"");
+        valueCase_ = ValueOneofCase.NameValue;
+      }
+    }
+    public bool HasNameValue {
+      get { return valueCase_ == ValueOneofCase.NameValue; }
+    }
+
+    public global::Foo.Bar.Nested DescValue {
+      get { return HasDescValue ? (global::Foo.Bar.Nested) value_ : null; }
+      set {
+        value_ = value;
+        valueCase_ = ValueOneofCase.DescValue;
+      }
+    }
+    public bool HasDescValue {
+      get { return valueCase_ == ValueOneofCase.DescValue; }
+    }
+
+    public void ClearValue() {
+      valueCase_ = ValueOneofCase.None;
+      value_ = null;
+    }
+";
+
+        var result = _patcher.PatchContent(input);
+
+        Assert.That(result, Does.Not.Contain("private object value_;"));
+        Assert.That(result, Does.Contain("private long value_Int64_;"));
+        Assert.That(result, Does.Contain("private string value_String_;"));
+        Assert.That(result, Does.Contain("private global::Foo.Bar.Nested value_Nested_;"));
+
+        Assert.That(result, Does.Contain("HasIntValue ? value_Int64_ : 0L"));
+        Assert.That(result, Does.Contain("HasNameValue ? value_String_ : \"\""));
+        Assert.That(result, Does.Contain("HasDescValue ? value_Nested_ : null"));
+
+        Assert.That(result, Does.Contain("value_Int64_ = value;"));
+        Assert.That(result, Does.Contain("value_String_ = pb::ProtoPreconditions.CheckNotNull(value, \"value\");"));
+        Assert.That(result, Does.Contain("value_Nested_ = value;"));
+
+        Assert.That(result, Does.Not.Contain("value_ = null;"));
+        Assert.That(result, Does.Contain("value_String_ = null;"));
+        Assert.That(result, Does.Contain("value_Nested_ = null;"));
     }
 
     #endregion

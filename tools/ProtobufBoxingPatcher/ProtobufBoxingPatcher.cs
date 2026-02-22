@@ -132,6 +132,10 @@ public sealed class ProtobufBoxingPatcher
         };
     }
 
+    /// <summary>
+    /// All oneof members are the same value type.
+    /// Replace <c>private object X_;</c> with <c>private {type} X_;</c>
+    /// </summary>
     private string PatchSameValueType(string content, OneofFieldInfo field)
     {
         var type = field.DistinctValueTypes[0];
@@ -151,60 +155,141 @@ public sealed class ProtobufBoxingPatcher
         return content;
     }
 
+    /// <summary>
+    /// Multiple different value types, no reference types.
+    /// Replace <c>private object X_;</c> with a LayoutKind.Explicit union struct.
+    /// </summary>
     private string PatchMultiValueType(string content, OneofFieldInfo field)
     {
         var fn = field.FieldName;
         var escaped = Regex.Escape(fn);
+        var structName = ToPascalCase(fn) + "Union";
 
         var indent = DetectIndent(content, $"private object {fn}_;");
-        var newDecl = string.Join("\n",
-            field.DistinctValueTypes.Select(t =>
-                $"{indent}private {t} {fn}_{GetSuffix(t)}_;"));
+        var unionStruct = GenerateUnionStruct(indent, structName, field.DistinctValueTypes);
+        var fieldDecl = $"{indent}private {structName} {fn}_;";
 
-        content = ReplaceLineContaining(content, $"private object {fn}_;", newDecl);
+        content = ReplaceLineContaining(content,
+            $"private object {fn}_;",
+            $"{unionStruct}\n{fieldDecl}");
 
         foreach (var type in field.DistinctValueTypes)
         {
             var suffix = GetSuffix(type);
             content = Regex.Replace(content,
                 $@"\({Regex.Escape(type)}\)\s*{escaped}_",
-                $"{fn}_{suffix}_");
+                $"{fn}_.{suffix}");
         }
 
-        content = PatchSetters(content, field);
+        content = PatchSettersUnion(content, field, fn);
         content = RemoveNullAssignment(content, fn);
 
         return content;
     }
 
+    /// <summary>
+    /// Mix of value and reference types.
+    /// Remove <c>private object X_;</c> and replace with typed fields for all members.
+    /// Use a union struct when multiple distinct value types exist,
+    /// or a single typed field when only one value type.
+    /// Add separate typed fields for each distinct reference type.
+    /// </summary>
     private string PatchMixedTypes(string content, OneofFieldInfo field)
     {
         var fn = field.FieldName;
         var escaped = Regex.Escape(fn);
-
         var indent = DetectIndent(content, $"private object {fn}_;");
-        var newFields = string.Join("\n",
-            field.DistinctValueTypes.Select(t =>
-                $"{indent}private {t} {fn}_{GetSuffix(t)}_;"));
+        var distinctRefTypes = field.RefTypeMembers.Values.Distinct().ToList();
+        var declarations = new List<string>();
 
-        content = content.Replace(
-            $"private object {fn}_;",
-            $"private object {fn}_;\n{newFields}");
-
-        foreach (var type in field.DistinctValueTypes)
+        if (field.DistinctValueTypes.Count > 1)
         {
+            var structName = ToPascalCase(fn) + "Union";
+            var unionFieldName = fn + "Union";
+
+            declarations.Add(GenerateUnionStruct(indent, structName, field.DistinctValueTypes));
+            declarations.Add($"{indent}private {structName} {unionFieldName}_;");
+
+            foreach (var type in field.DistinctValueTypes)
+            {
+                var suffix = GetSuffix(type);
+                content = Regex.Replace(content,
+                    $@"\({Regex.Escape(type)}\)\s*{escaped}_",
+                    $"{unionFieldName}_.{suffix}");
+            }
+
+            content = PatchSettersUnion(content, field, unionFieldName);
+        }
+        else
+        {
+            var type = field.DistinctValueTypes[0];
             var suffix = GetSuffix(type);
+
+            declarations.Add($"{indent}private {type} {fn}_{suffix}_;");
+
             content = Regex.Replace(content,
                 $@"\({Regex.Escape(type)}\)\s*{escaped}_",
                 $"{fn}_{suffix}_");
+
+            content = PatchSettersSeparateField(content, field);
         }
 
-        content = PatchSetters(content, field);
+        foreach (var refType in distinctRefTypes)
+        {
+            var suffix = GetSuffix(refType);
+            declarations.Add($"{indent}private {refType} {fn}_{suffix}_;");
+        }
+
+        foreach (var refType in distinctRefTypes)
+        {
+            var suffix = GetSuffix(refType);
+            content = Regex.Replace(content,
+                $@"\({Regex.Escape(refType)}\)\s*{escaped}_",
+                $"{fn}_{suffix}_");
+        }
+
+        content = PatchRefTypeSetters(content, field);
+        content = ReplaceNullWithRefNulls(content, field);
+
+        content = ReplaceLineContaining(content,
+            $"private object {fn}_;",
+            string.Join("\n", declarations));
 
         return content;
     }
 
-    private string PatchSetters(string content, OneofFieldInfo field)
+    /// <summary>
+    /// Patches setters to use union member access: <c>fieldName_.Suffix = value;</c>
+    /// </summary>
+    private string PatchSettersUnion(string content, OneofFieldInfo field, string targetFieldName)
+    {
+        var fn = field.FieldName;
+        var escaped = Regex.Escape(fn);
+
+        var setterPattern = new Regex(
+            $@"({escaped}_)\s*=\s*([^;]+);\s*\r?\n(\s*)(\w+Case_\s*=\s*\w+\.)(\w+);");
+
+        content = setterPattern.Replace(content, match =>
+        {
+            var memberName = match.Groups[5].Value;
+            if (!field.ValueTypeMembers.TryGetValue(memberName, out var type))
+                return match.Value;
+
+            var suffix = GetSuffix(type);
+            var valueExpr = match.Groups[2].Value;
+            var indent = match.Groups[3].Value;
+            var caseAssign = match.Groups[4].Value + match.Groups[5].Value;
+
+            return $"{targetFieldName}_.{suffix} = {valueExpr};\n{indent}{caseAssign};";
+        });
+
+        return content;
+    }
+
+    /// <summary>
+    /// Patches setters to use separate field: <c>fieldName_Suffix_ = value;</c>
+    /// </summary>
+    private string PatchSettersSeparateField(string content, OneofFieldInfo field)
     {
         var fn = field.FieldName;
         var escaped = Regex.Escape(fn);
@@ -227,6 +312,87 @@ public sealed class ProtobufBoxingPatcher
         });
 
         return content;
+    }
+
+    /// <summary>
+    /// Patches reference type setters: <c>fieldName_ = expr;</c> → <c>fieldName_Suffix_ = expr;</c>
+    /// Handles both simple (<c>case_ = Enum.Member;</c>) and nullable
+    /// (<c>case_ = value == null ? Enum.None : Enum.Member;</c>) patterns.
+    /// </summary>
+    private string PatchRefTypeSetters(string content, OneofFieldInfo field)
+    {
+        var fn = field.FieldName;
+        var escaped = Regex.Escape(fn);
+
+        var simplePattern = new Regex(
+            $@"({escaped}_)\s*=\s*([^;]+);\s*\r?\n(\s*)(\w+Case_\s*=\s*\w+\.)(\w+);");
+
+        content = simplePattern.Replace(content, match =>
+        {
+            var memberName = match.Groups[5].Value;
+            if (!field.RefTypeMembers.TryGetValue(memberName, out var type))
+                return match.Value;
+
+            var suffix = GetSuffix(type);
+            var valueExpr = match.Groups[2].Value;
+            var indent = match.Groups[3].Value;
+            var caseAssign = match.Groups[4].Value + match.Groups[5].Value;
+
+            return $"{fn}_{suffix}_ = {valueExpr};\n{indent}{caseAssign};";
+        });
+
+        var nullablePattern = new Regex(
+            $@"({escaped}_)\s*=\s*([^;]+);\s*\r?\n(\s*)(\w+Case_\s*=\s*\w+\s*==\s*null\s*\?\s*\w+\.\w+\s*:\s*\w+\.)(\w+);");
+
+        content = nullablePattern.Replace(content, match =>
+        {
+            var memberName = match.Groups[5].Value;
+            if (!field.RefTypeMembers.TryGetValue(memberName, out var type))
+                return match.Value;
+
+            var suffix = GetSuffix(type);
+            var valueExpr = match.Groups[2].Value;
+            var indent = match.Groups[3].Value;
+            var caseAssign = match.Groups[4].Value + match.Groups[5].Value;
+
+            return $"{fn}_{suffix}_ = {valueExpr};\n{indent}{caseAssign};";
+        });
+
+        return content;
+    }
+
+    /// <summary>
+    /// Replaces <c>fieldName_ = null;</c> with null assignments for each distinct reference type field.
+    /// </summary>
+    private string ReplaceNullWithRefNulls(string content, OneofFieldInfo field)
+    {
+        var fn = field.FieldName;
+        var escaped = Regex.Escape(fn);
+        var distinctRefTypes = field.RefTypeMembers.Values.Distinct().ToList();
+
+        var pattern = new Regex($@"(\r?\n)([ \t]*){escaped}_ = null;");
+        return pattern.Replace(content, match =>
+        {
+            var newline = match.Groups[1].Value;
+            var indent = match.Groups[2].Value;
+            var nullAssignments = distinctRefTypes.Select(t =>
+                $"{indent}{fn}_{GetSuffix(t)}_ = null;");
+            return newline + string.Join(newline, nullAssignments);
+        });
+    }
+
+    private static string GenerateUnionStruct(string indent, string structName, List<string> types)
+    {
+        var fieldLines = string.Join("\n",
+            types.Select(t =>
+                $"{indent}    [System.Runtime.InteropServices.FieldOffset(0)] public {t} {GetSuffix(t)};"));
+
+        return
+            $"{indent}[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit)]\n" +
+            $"{indent}private struct {structName}\n" +
+            $"{indent}{{\n" +
+            $"{fieldLines}\n" +
+            $"{indent}}}";
     }
 
     private static string RemoveNullAssignment(string content, string fieldName)
@@ -264,10 +430,25 @@ public sealed class ProtobufBoxingPatcher
         return "    ";
     }
 
+    private static string ToPascalCase(string camelCase)
+    {
+        if (string.IsNullOrEmpty(camelCase)) return camelCase;
+        return char.ToUpper(camelCase[0]) + camelCase[1..];
+    }
+
     private static bool IsValueType(string type) => ValueTypes.Contains(type);
 
-    internal static string GetSuffix(string type) =>
-        TypeSuffixes.TryGetValue(type, out var suffix) ? suffix : type;
+    internal static string GetSuffix(string type)
+    {
+        if (TypeSuffixes.TryGetValue(type, out var suffix))
+            return suffix;
+
+        var lastDot = type.LastIndexOf('.');
+        if (lastDot >= 0)
+            return type[(lastDot + 1)..];
+
+        return char.ToUpper(type[0]) + type[1..];
+    }
 
     private static void PrintFieldInfo(OneofFieldInfo field)
     {
@@ -278,7 +459,7 @@ public sealed class ProtobufBoxingPatcher
         }
         foreach (var (member, type) in field.RefTypeMembers)
         {
-            Console.WriteLine($"    {member}: {type} (reference, unchanged)");
+            Console.WriteLine($"    {member}: {type} -> {field.FieldName}_{GetSuffix(type)}_");
         }
     }
 }
