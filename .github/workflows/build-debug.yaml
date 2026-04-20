@@ -41,7 +41,7 @@ jobs:
     steps:
       - name: Load secrets
         id: op-load-secret
-        uses: bitwarden/sm-action@v2
+        uses: bitwarden/sm-action@v2.2.0
         with:
           access_token: ${{ secrets.BW_ACCESS_TOKEN }}
           export-env: false
