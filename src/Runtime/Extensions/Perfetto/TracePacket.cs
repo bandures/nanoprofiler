@@ -153,6 +153,9 @@ namespace Perfetto.Protos {
         case DataOneofCase.CompressedPackets:
           CompressedPackets = other.CompressedPackets;
           break;
+        case DataOneofCase.TraceAttributes:
+          TraceAttributes = other.TraceAttributes.Clone();
+          break;
       }
 
       switch (other.OptionalTrustedUidCase) {
@@ -269,6 +272,21 @@ namespace Perfetto.Protos {
       set {
         data_ = value;
         dataCase_ = value == null ? DataOneofCase.None : DataOneofCase.TrackDescriptor;
+      }
+    }
+
+    /// <summary>Field number for the "trace_attributes" field.</summary>
+    public const int TraceAttributesFieldNumber = 126;
+    /// <summary>
+    /// Arbitrary trace-level key/value metadata (device, GPU, client version, ...).
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Perfetto.Protos.TraceAttributes TraceAttributes {
+      get { return dataCase_ == DataOneofCase.TraceAttributes ? (global::Perfetto.Protos.TraceAttributes) data_ : null; }
+      set {
+        data_ = value;
+        dataCase_ = value == null ? DataOneofCase.None : DataOneofCase.TraceAttributes;
       }
     }
 
@@ -670,6 +688,7 @@ namespace Perfetto.Protos {
       ThreadDescriptor = 44,
       SynchronizationMarker = 36,
       CompressedPackets = 50,
+      TraceAttributes = 126,
     }
     private DataOneofCase dataCase_ = DataOneofCase.None;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -744,6 +763,7 @@ namespace Perfetto.Protos {
       if (!object.Equals(TrackDescriptor, other.TrackDescriptor)) return false;
       if (!object.Equals(ProcessDescriptor, other.ProcessDescriptor)) return false;
       if (!object.Equals(ThreadDescriptor, other.ThreadDescriptor)) return false;
+      if (!object.Equals(TraceAttributes, other.TraceAttributes)) return false;
       if (SynchronizationMarker != other.SynchronizationMarker) return false;
       if (CompressedPackets != other.CompressedPackets) return false;
       if (TrustedUid != other.TrustedUid) return false;
@@ -772,6 +792,7 @@ namespace Perfetto.Protos {
       if (dataCase_ == DataOneofCase.TrackDescriptor) hash ^= TrackDescriptor.GetHashCode();
       if (dataCase_ == DataOneofCase.ProcessDescriptor) hash ^= ProcessDescriptor.GetHashCode();
       if (dataCase_ == DataOneofCase.ThreadDescriptor) hash ^= ThreadDescriptor.GetHashCode();
+      if (dataCase_ == DataOneofCase.TraceAttributes) hash ^= TraceAttributes.GetHashCode();
       if (HasSynchronizationMarker) hash ^= SynchronizationMarker.GetHashCode();
       if (HasCompressedPackets) hash ^= CompressedPackets.GetHashCode();
       if (HasTrustedUid) hash ^= TrustedUid.GetHashCode();
@@ -877,6 +898,10 @@ namespace Perfetto.Protos {
         output.WriteRawTag(144, 6);
         output.WriteUInt32(MachineId);
       }
+      if (dataCase_ == DataOneofCase.TraceAttributes) {
+        output.WriteRawTag(242, 7);
+        output.WriteMessage(TraceAttributes);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -959,6 +984,10 @@ namespace Perfetto.Protos {
         output.WriteRawTag(144, 6);
         output.WriteUInt32(MachineId);
       }
+      if (dataCase_ == DataOneofCase.TraceAttributes) {
+        output.WriteRawTag(242, 7);
+        output.WriteMessage(TraceAttributes);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -1022,6 +1051,9 @@ namespace Perfetto.Protos {
       }
       if (HasMachineId) {
         size += 2 + pb::CodedOutputStream.ComputeUInt32Size(MachineId);
+      }
+      if (dataCase_ == DataOneofCase.TraceAttributes) {
+        size += 2 + pb::CodedOutputStream.ComputeMessageSize(TraceAttributes);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -1101,6 +1133,12 @@ namespace Perfetto.Protos {
           break;
         case DataOneofCase.CompressedPackets:
           CompressedPackets = other.CompressedPackets;
+          break;
+        case DataOneofCase.TraceAttributes:
+          if (TraceAttributes == null) {
+            TraceAttributes = new global::Perfetto.Protos.TraceAttributes();
+          }
+          TraceAttributes.MergeFrom(other.TraceAttributes);
           break;
       }
 
@@ -1233,6 +1271,15 @@ namespace Perfetto.Protos {
             MachineId = input.ReadUInt32();
             break;
           }
+          case 1010: {
+            global::Perfetto.Protos.TraceAttributes subBuilder = new global::Perfetto.Protos.TraceAttributes();
+            if (dataCase_ == DataOneofCase.TraceAttributes) {
+              subBuilder.MergeFrom(TraceAttributes);
+            }
+            input.ReadMessage(subBuilder);
+            TraceAttributes = subBuilder;
+            break;
+          }
         }
       }
     #endif
@@ -1348,6 +1395,15 @@ namespace Perfetto.Protos {
           }
           case 784: {
             MachineId = input.ReadUInt32();
+            break;
+          }
+          case 1010: {
+            global::Perfetto.Protos.TraceAttributes subBuilder = new global::Perfetto.Protos.TraceAttributes();
+            if (dataCase_ == DataOneofCase.TraceAttributes) {
+              subBuilder.MergeFrom(TraceAttributes);
+            }
+            input.ReadMessage(subBuilder);
+            TraceAttributes = subBuilder;
             break;
           }
         }

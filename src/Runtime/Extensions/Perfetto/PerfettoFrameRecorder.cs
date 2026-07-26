@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using Microsoft.Extensions.Logging;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace NanoProfiler
@@ -39,6 +40,7 @@ namespace NanoProfiler
             _valid = false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write<T>(ref T value) where T : unmanaged
         {
             if (!_valid)
@@ -58,6 +60,7 @@ namespace NanoProfiler
             _position += srcSpan.Length;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Read<T>(ref int position, ref T value) where T : unmanaged
         {
             if (!_valid || position >= _position)
@@ -84,6 +87,7 @@ namespace NanoProfiler
             _valid = true;
         }
         
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe Span<byte> BufferSpan()
         {
             return new Span<byte>(_buffer.ToPointer(), _bufferSize);
