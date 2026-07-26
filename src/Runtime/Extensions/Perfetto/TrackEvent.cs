@@ -298,9 +298,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public ulong NameIid {
-      get { return HasNameIid ? (ulong) nameField_ : 0UL; }
+      get { return HasNameIid ? nameField_UInt64_ : 0UL; }
       set {
-        nameField_ = value;
+        nameField_UInt64_ = value;
         nameFieldCase_ = NameFieldOneofCase.NameIid;
       }
     }
@@ -327,9 +327,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public string Name {
-      get { return HasName ? (string) nameField_ : ""; }
+      get { return HasName ? nameField_String_ : ""; }
       set {
-        nameField_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+        nameField_String_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
         nameFieldCase_ = NameFieldOneofCase.Name;
       }
     }
@@ -414,9 +414,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public long CounterValue {
-      get { return HasCounterValue ? (long) counterValueField_ : 0L; }
+      get { return HasCounterValue ? counterValueField_.Int64 : 0L; }
       set {
-        counterValueField_ = value;
+        counterValueField_.Int64 = value;
         counterValueFieldCase_ = CounterValueFieldOneofCase.CounterValue;
       }
     }
@@ -440,9 +440,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public double DoubleCounterValue {
-      get { return HasDoubleCounterValue ? (double) counterValueField_ : 0D; }
+      get { return HasDoubleCounterValue ? counterValueField_.Double : 0D; }
       set {
-        counterValueField_ = value;
+        counterValueField_.Double = value;
         counterValueFieldCase_ = CounterValueFieldOneofCase.DoubleCounterValue;
       }
     }
@@ -645,7 +645,7 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public long TimestampDeltaUs {
-      get { return HasTimestampDeltaUs ? (long) timestamp_ : 0L; }
+      get { return HasTimestampDeltaUs ? timestamp_ : 0L; }
       set {
         timestamp_ = value;
         timestampCase_ = TimestampOneofCase.TimestampDeltaUs;
@@ -676,7 +676,7 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public long TimestampAbsoluteUs {
-      get { return HasTimestampAbsoluteUs ? (long) timestamp_ : 0L; }
+      get { return HasTimestampAbsoluteUs ? timestamp_ : 0L; }
       set {
         timestamp_ = value;
         timestampCase_ = TimestampOneofCase.TimestampAbsoluteUs;
@@ -709,7 +709,7 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public long ThreadTimeDeltaUs {
-      get { return HasThreadTimeDeltaUs ? (long) threadTime_ : 0L; }
+      get { return HasThreadTimeDeltaUs ? threadTime_ : 0L; }
       set {
         threadTime_ = value;
         threadTimeCase_ = ThreadTimeOneofCase.ThreadTimeDeltaUs;
@@ -739,7 +739,7 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public long ThreadTimeAbsoluteUs {
-      get { return HasThreadTimeAbsoluteUs ? (long) threadTime_ : 0L; }
+      get { return HasThreadTimeAbsoluteUs ? threadTime_ : 0L; }
       set {
         threadTime_ = value;
         threadTimeCase_ = ThreadTimeOneofCase.ThreadTimeAbsoluteUs;
@@ -768,7 +768,7 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public long ThreadInstructionCountDelta {
-      get { return HasThreadInstructionCountDelta ? (long) threadInstructionCount_ : 0L; }
+      get { return HasThreadInstructionCountDelta ? threadInstructionCount_ : 0L; }
       set {
         threadInstructionCount_ = value;
         threadInstructionCountCase_ = ThreadInstructionCountOneofCase.ThreadInstructionCountDelta;
@@ -794,7 +794,7 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public long ThreadInstructionCountAbsolute {
-      get { return HasThreadInstructionCountAbsolute ? (long) threadInstructionCount_ : 0L; }
+      get { return HasThreadInstructionCountAbsolute ? threadInstructionCount_ : 0L; }
       set {
         threadInstructionCount_ = value;
         threadInstructionCountCase_ = ThreadInstructionCountOneofCase.ThreadInstructionCountAbsolute;
@@ -827,7 +827,8 @@ namespace Perfetto.Protos {
       }
     }
 
-    private object nameField_;
+    private ulong nameField_UInt64_;
+    private string nameField_String_;
     /// <summary>Enum of possible cases for the "name_field" oneof.</summary>
     public enum NameFieldOneofCase {
       None = 0,
@@ -845,10 +846,16 @@ namespace Perfetto.Protos {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearNameField() {
       nameFieldCase_ = NameFieldOneofCase.None;
-      nameField_ = null;
+      nameField_String_ = null;
     }
 
-    private object counterValueField_;
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit)]
+    private struct CounterValueFieldUnion
+    {
+        [System.Runtime.InteropServices.FieldOffset(0)] public long Int64;
+        [System.Runtime.InteropServices.FieldOffset(0)] public double Double;
+    }
+    private CounterValueFieldUnion counterValueField_;
     /// <summary>Enum of possible cases for the "counter_value_field" oneof.</summary>
     public enum CounterValueFieldOneofCase {
       None = 0,
@@ -866,10 +873,9 @@ namespace Perfetto.Protos {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearCounterValueField() {
       counterValueFieldCase_ = CounterValueFieldOneofCase.None;
-      counterValueField_ = null;
     }
 
-    private object timestamp_;
+    private long timestamp_;
     /// <summary>Enum of possible cases for the "timestamp" oneof.</summary>
     public enum TimestampOneofCase {
       None = 0,
@@ -887,10 +893,9 @@ namespace Perfetto.Protos {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearTimestamp() {
       timestampCase_ = TimestampOneofCase.None;
-      timestamp_ = null;
     }
 
-    private object threadTime_;
+    private long threadTime_;
     /// <summary>Enum of possible cases for the "thread_time" oneof.</summary>
     public enum ThreadTimeOneofCase {
       None = 0,
@@ -908,10 +913,9 @@ namespace Perfetto.Protos {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearThreadTime() {
       threadTimeCase_ = ThreadTimeOneofCase.None;
-      threadTime_ = null;
     }
 
-    private object threadInstructionCount_;
+    private long threadInstructionCount_;
     /// <summary>Enum of possible cases for the "thread_instruction_count" oneof.</summary>
     public enum ThreadInstructionCountOneofCase {
       None = 0,
@@ -929,7 +933,6 @@ namespace Perfetto.Protos {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearThreadInstructionCount() {
       threadInstructionCountCase_ = ThreadInstructionCountOneofCase.None;
-      threadInstructionCount_ = null;
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1912,7 +1915,7 @@ namespace Perfetto.Protos {
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public ulong UnscopedId {
-          get { return HasUnscopedId ? (ulong) id_ : 0UL; }
+          get { return HasUnscopedId ? id_ : 0UL; }
           set {
             id_ = value;
             idCase_ = IdOneofCase.UnscopedId;
@@ -1938,7 +1941,7 @@ namespace Perfetto.Protos {
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public ulong LocalId {
-          get { return HasLocalId ? (ulong) id_ : 0UL; }
+          get { return HasLocalId ? id_ : 0UL; }
           set {
             id_ = value;
             idCase_ = IdOneofCase.LocalId;
@@ -1964,7 +1967,7 @@ namespace Perfetto.Protos {
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public ulong GlobalId {
-          get { return HasGlobalId ? (ulong) id_ : 0UL; }
+          get { return HasGlobalId ? id_ : 0UL; }
           set {
             id_ = value;
             idCase_ = IdOneofCase.GlobalId;
@@ -2219,7 +2222,7 @@ namespace Perfetto.Protos {
           _hasBits0 &= ~2048;
         }
 
-        private object id_;
+        private ulong id_;
         /// <summary>Enum of possible cases for the "id" oneof.</summary>
         public enum IdOneofCase {
           None = 0,
@@ -2238,7 +2241,6 @@ namespace Perfetto.Protos {
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public void ClearId() {
           idCase_ = IdOneofCase.None;
-          id_ = null;
         }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
