@@ -19,6 +19,7 @@ namespace NanoProfiler
         private readonly ILogger? _logger;
         
         private FileStream? _fileStream;
+        private CodedOutputStream? _codedOutputStream;
         private readonly Trace _trace;
 
         private readonly PerfettoObjectPool<TracePacket> _packetPool;
@@ -71,6 +72,7 @@ namespace NanoProfiler
             {
                 var fileMode = appending ? FileMode.Append : FileMode.Create;
                 _fileStream = new FileStream(_fileName, fileMode, FileAccess.Write, FileShare.None);
+                _codedOutputStream = new CodedOutputStream(_fileStream, leaveOpen: true);
             }
             catch (IOException e)
             {
@@ -94,7 +96,8 @@ namespace NanoProfiler
             if (_trace.Packet?.Count == 0 || _fileStream == null)
                 return;
             
-            _trace.WriteTo(_fileStream);
+            _trace.WriteTo(_codedOutputStream);
+            _codedOutputStream!.Flush();
 
             if (_trace.Packet == null)
                 return;
@@ -194,6 +197,8 @@ namespace NanoProfiler
         public void Dispose()
         {
             FlushTrace();
+            _codedOutputStream?.Dispose();
+            _codedOutputStream = null;
             _fileStream?.Flush(true);
             _fileStream?.Dispose();
             _fileStream = null;
