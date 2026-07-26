@@ -11,7 +11,7 @@ namespace NanoProfiler
 
         public void Sample(float value)
         {
-            if (!_profiler.IsGroupEnabled(_groupId))
+            if (_profiler == null || !_profiler.IsGroupEnabled(_groupId))
                 return;
             _profiler.CurrentThread.EmitCounterSample(_id, value);
         }
