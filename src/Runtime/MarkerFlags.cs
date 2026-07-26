@@ -13,7 +13,9 @@ namespace NanoProfiler
         // Marker was pre-created from settings. Pre-created markers don't know final
         // flags and need to be updated later when client codes attempt to create them.
         PreCreated = 1 << 2,
-        
+        // Group whose events are kept when a budget-restricted trace drops non-essential data.
+        Critical = 1 << 3,
+
         // All colors bits mask
         ColorsMask = 0xF000,
         // Paint Marker "red" in visualization tools that support colors 

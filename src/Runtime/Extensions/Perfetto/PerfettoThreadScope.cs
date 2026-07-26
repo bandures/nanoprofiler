@@ -1,56 +1,77 @@
-﻿using Perfetto.Protos;
+using Perfetto.Protos;
 
 namespace NanoProfiler
 {
+    /// <summary>Writes one thread's scope slices, dropping whole subtrees the budget rejects.</summary>
     internal class PerfettoThreadScope
     {
-        private readonly PerfettoProcessor _processor;
+        private const int NotDropping = int.MaxValue;
+
         private readonly PerfettoFileWriter _fileWriter;
         private readonly ulong _trackId;
-        private int _depth;
-        
-        public PerfettoThreadScope(PerfettoProcessor processor, PerfettoFileWriter fileWriter, int processId, int threadId, ulong rootTrackId)
+
+        private int _openDepth;
+        // Root depth of the current dropped subtree. A thread track is a strict stack, so a dropped
+        // scope must drop all its children too; tracking one depth keeps begins/ends balanced.
+        private int _dropDepth = NotDropping;
+
+        public PerfettoThreadScope(PerfettoFileWriter fileWriter, int processId, int threadId, ulong rootTrackId)
         {
-            _processor = processor;
             _fileWriter = fileWriter;
-            _depth = 0;
-            
+
             var threadName = threadId == 0 ? "Main Thread" : $"Thread {threadId}";
             _trackId = _fileWriter.AddThreadTrack(processId, threadId, threadName, rootTrackId);
         }
 
-        public void Begin(ref Protocol.ScopeBegin msg)
+        // Lets the caller skip the marker lookup and interning for scopes that will be dropped anyway.
+        public bool IsDropping => _dropDepth != NotDropping;
+
+        public void Begin(long timestamp, ulong internId, InternedData? internedData, bool emit)
         {
-            var uuid = _processor.GetOrCreateInternedData(msg.MarkerId, null, out var internedData);
-                
+            if (!emit)
+            {
+                if (_dropDepth == NotDropping)
+                    _dropDepth = _openDepth;
+                _openDepth++;
+                return;
+            }
+
+            _openDepth++;
+
             var trackEvent = _fileWriter.GetTrackEvent();
             trackEvent.Type = TrackEvent.Types.Type.SliceBegin;
-            trackEvent.NameIid = uuid;
+            trackEvent.NameIid = internId;
             trackEvent.TrackUuid = _trackId;
-                
-            _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, internedData, true);
 
-            _depth++;
+            _fileWriter.AddTimestampEvent(trackEvent, timestamp, internedData, true);
         }
-        
-        public void End(ref Protocol.ScopeEnd msg)
+
+        public void End(long timestamp)
         {
+            if (_openDepth == 0)
+                return;
+
+            _openDepth--;
+
+            if (_dropDepth != NotDropping)
+            {
+                // Leaving the scope that opened the drop region ends it; dropped scopes emit no end.
+                if (_openDepth == _dropDepth)
+                    _dropDepth = NotDropping;
+                return;
+            }
+
             var trackEvent = _fileWriter.GetTrackEvent();
             trackEvent.Type = TrackEvent.Types.Type.SliceEnd;
             trackEvent.TrackUuid = _trackId;
 
-            _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, null, false);
-
-            _depth--;
+            _fileWriter.AddTimestampEvent(trackEvent, timestamp, null, false);
         }
 
         public void CloseScopes(long timestamp)
         {
-            var msg = new Protocol.ScopeEnd() { Timestamp = timestamp };
-            while (_depth > 0)
-                End(ref msg);
-
-            _depth = 0;
+            while (_openDepth > 0)
+                End(timestamp);
         }
     }
 }

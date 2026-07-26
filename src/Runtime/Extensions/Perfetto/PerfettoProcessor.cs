@@ -3,13 +3,14 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Perfetto.Protos;
 
 namespace NanoProfiler
 {
-    public sealed class PerfettoProcessor : 
+    public sealed class PerfettoProcessor :
         IProcessor<Protocol.CaptureStart>,
         IProcessor<Protocol.CaptureStop>,
         IProcessor<Protocol.RegisterMarker>,
@@ -21,11 +22,11 @@ namespace NanoProfiler
         IProcessor<Protocol.CounterSample>,
         IProcessor<Protocol.Frame>
     {
-        private record struct GroupInfo(ulong TrackId);
-        private record struct MarkerInfo(string Name, ulong GroupTrackId, bool Interned, ulong InternId);
+        private record struct GroupInfo(ulong TrackId, MarkerFlags Flags);
+        private record struct MarkerInfo(string Name, ulong GroupTrackId, bool IsCritical, bool Interned, ulong InternId);
         private record struct ActivityInfo(ulong TrackId, ulong InternId);
-        private record struct CounterInfo(ulong TrackId, long LastSampleTimestamp, bool HasValue, double Value);
-        
+        private record struct CounterInfo(ulong TrackId, bool IsCritical, long LastSampleTimestamp, bool HasValue, double Value);
+
         private readonly PerfettoProcessorSettings _settings;
         private readonly Dictionary<uint, GroupInfo> _groups = new();
         private readonly Dictionary<uint, MarkerInfo> _markers = new();
@@ -33,19 +34,23 @@ namespace NanoProfiler
         private readonly Dictionary<int, ulong> _openActivities = new();
         private readonly Dictionary<uint, CounterInfo> _counters = new();
         private readonly Dictionary<int, PerfettoThreadScope> _threadTracks = new();
-        private readonly long _dynamicScopesTriggerThresholdTicks;
-        private readonly long _dynamicScopesCooldownTicks;
+        private readonly long _spikeMinimumTicks;
+        private readonly long _countersSamplingRateTicks;
         private readonly StringBuilder _stringBuilder = new(256);
         
         private static readonly uint TrustedPacketSequenceId;
         
+        private readonly SpikeDetector _spikeDetector;
+
         private PerfettoFrameRecorder? _frameRecorder;
         private PerfettoFileWriter? _fileWriter;
         private ulong _scopeRootTrackId;
         private ulong _activityRootTrackId;
         private long _lastFrameTimestamp;
-        private long _frameRecorderDisableUntilTimestamp;
         private int _frameIndex;
+
+        private bool _criticalOnly;   // >= CriticalBudgetBytes: keep only critical events
+        private bool _hardStop;       // >= MaxFileSizeBytes: stop writing entirely
 
         static PerfettoProcessor()
         {
@@ -55,12 +60,23 @@ namespace NanoProfiler
         
         public PerfettoProcessor(PerfettoProcessorSettings settings)
         {
+            if (settings.CriticalBudgetBytes >= settings.MaxFileSizeBytes)
+            {
+                throw new ArgumentException(
+                    $"{nameof(settings.CriticalBudgetBytes)} ({settings.CriticalBudgetBytes}) must be below " +
+                    $"{nameof(settings.MaxFileSizeBytes)} ({settings.MaxFileSizeBytes}); otherwise the critical-only phase never runs.", nameof(settings));
+            }
+
             _settings = settings;
             _fileWriter = null;
             _frameRecorder = null;
-            _dynamicScopesTriggerThresholdTicks = TimeHelper.MillisecondsToTimestamp(_settings.DynamicScopesTriggerThresholdMs);
-            _dynamicScopesCooldownTicks = TimeHelper.MillisecondsToTimestamp(_settings.DynamicScopesCooldownMs);
+            _spikeMinimumTicks = TimeHelper.MillisecondsToTimestamp(_settings.SpikeMinimumMs);
+            _countersSamplingRateTicks = TimeHelper.MillisecondsToTimestamp(_settings.CountersSamplingRate.TotalMilliseconds);
+            _spikeDetector = new SpikeDetector(_settings.SpikeWindowFrames, _spikeMinimumTicks, _settings.SpikeRatioMultiplier);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool ShouldEmit(bool isCritical) => !_hardStop && (!_criticalOnly || isCritical);
 
         public void Dispose()
         {
@@ -76,7 +92,15 @@ namespace NanoProfiler
             _fileWriter.IsFirstPacketInSequence = !appending;
             _scopeRootTrackId = _fileWriter.AddProcessTrack(_settings.ProcessId, _settings.ProcessName);
             _activityRootTrackId = _fileWriter.AddTrack("Activity");
-            
+
+            // Metadata is a one-shot header
+            if (!appending && _settings.Metadata != null)
+                _fileWriter.AddTraceAttributes(_settings.Metadata);
+
+            _criticalOnly = false;
+            _hardStop = false;
+            _spikeDetector.Reset();
+
             if (_settings.DynamicScopes)
                 _frameRecorder = new PerfettoFrameRecorder(_settings.DynamicScopesBufferSize, _settings.Logger);
         }
@@ -92,9 +116,11 @@ namespace NanoProfiler
             _fileWriter = null;
             _frameRecorder?.Dispose();
             _frameRecorder = null;
-            _lastFrameTimestamp = 0; 
+            _lastFrameTimestamp = 0;
             _scopeRootTrackId = 0;
             _activityRootTrackId = 0;
+            _criticalOnly = false;
+            _hardStop = false;
             
             _groups.Clear();
             _markers.Clear();
@@ -113,7 +139,10 @@ namespace NanoProfiler
             {
                 if (!counter.HasValue)
                     continue;
-                
+
+                if (!ShouldEmit(counter.IsCritical))
+                    continue;
+
                 var trackEvent = _fileWriter.GetTrackEvent();
                 trackEvent.Type = TrackEvent.Types.Type.Counter;
                 trackEvent.TrackUuid = counter.TrackId;
@@ -127,22 +156,30 @@ namespace NanoProfiler
         {
             if (_fileWriter == null)
                 return;
-            if (_groups.ContainsKey(msg.GroupId))
+
+            if (_groups.TryGetValue(msg.GroupId, out var existing))
+            {
+                if (existing.Flags != msg.Flags)
+                {
+                    _settings.Logger?.LogError($"Perfetto group {msg.GroupId} '{msg.Name}' re-registered with changed flags " +
+                        $"({existing.Flags} -> {msg.Flags}); group flags are expected to be immutable.");
+                }
                 return;
+            }
 
             var uuid = _fileWriter.GetNextUniqueId();
             var packet = _fileWriter.GetPacket();
             var trackDescriptor = _fileWriter.GetTrackDescriptor();
-            
+
             trackDescriptor.Uuid = uuid;
             trackDescriptor.Name = msg.Name;
             trackDescriptor.ParentUuid = _activityRootTrackId;
             trackDescriptor.ChildOrdering = TrackDescriptor.Types.ChildTracksOrdering.Chronological;
-            
+
             packet.TrackDescriptor = trackDescriptor;
             _fileWriter.AddPacket(packet);
 
-            _groups[msg.GroupId] = new GroupInfo(uuid);
+            _groups[msg.GroupId] = new GroupInfo(uuid, msg.Flags);
         }
 
         public void HandleMessage(int threadId, ref Protocol.RegisterMarker msg)
@@ -151,10 +188,14 @@ namespace NanoProfiler
                 return;
             
             var groupTrack = _activityRootTrackId;
+            var groupCritical = false;
             if (_groups.TryGetValue(msg.GroupId, out var groupInfo))
+            {
                 groupTrack = groupInfo.TrackId;
-            
-            _markers[msg.MarkerId] = new MarkerInfo(msg.Name, groupTrack, false, 0);
+                groupCritical = groupInfo.Flags.HasFlag(MarkerFlags.Critical);
+            }
+
+            _markers[msg.MarkerId] = new MarkerInfo(msg.Name, groupTrack, groupCritical, false, 0);
         }
 
         public void HandleMessage(int threadId, ref Protocol.ScopeBegin msg)
@@ -168,8 +209,7 @@ namespace NanoProfiler
             }
             else
             {
-                var threadScope = GetOrCreateThreadScope(threadId);
-                threadScope.Begin(ref msg);
+                BeginScope(threadId, ref msg);
             }
         }
 
@@ -184,19 +224,21 @@ namespace NanoProfiler
             }
             else
             {
-                var threadScope = GetOrCreateThreadScope(threadId);
-                threadScope.End(ref msg);
+                EndScope(threadId, ref msg);
             }
         }
-        
+
         public void HandleMessage(int threadId, ref Protocol.ActivityBegin msg)
         {
             if (_fileWriter == null)
                 return;
-            
+
             if (!_markers.TryGetValue(msg.MarkerId, out var markerInfo))
                 return;
-            
+
+            if (!ShouldEmit(markerInfo.IsCritical))
+                return;
+
             var name = MakeUniqueId(markerInfo.Name, msg.Param1, msg.Param2, msg.Param3, _stringBuilder);
             var activity = RegisterActivity(msg.UniqueId, name, markerInfo.GroupTrackId, out var internedData);
             
@@ -213,13 +255,14 @@ namespace NanoProfiler
             if (_fileWriter == null)
                 return;
             
+            // Emit if the begin was emitted
             if (!_openActivities.Remove(msg.UniqueId, out var trackId))
                 return;
-            
+
             var trackEvent = _fileWriter.GetTrackEvent();
             trackEvent.Type = TrackEvent.Types.Type.SliceEnd;
             trackEvent.TrackUuid = trackId;
-            
+
             _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, null, false);
         }
 
@@ -227,19 +270,21 @@ namespace NanoProfiler
         {
             if (_fileWriter == null)
                 return;
-            
+
             if (!_counters.TryGetValue(msg.MarkerId, out var info) && !RegisterCounter(msg.MarkerId, out info))
                 return;
 
-            // We take the maximum value recorded during the sampling period
-            var value = info.HasValue ? Math.Max(info.Value, msg.Value) : msg.Value;
-            
-            var elapsedMs = TimeHelper.TimestampToMilliseconds(msg.Timestamp - info.LastSampleTimestamp);
-            if (elapsedMs < _settings.CountersSamplingRate.TotalMilliseconds)
+            if (!ShouldEmit(info.IsCritical))
+                return;
+
+            if (msg.Timestamp - info.LastSampleTimestamp < _countersSamplingRateTicks)
             {
-                _counters[msg.MarkerId] = info with { HasValue = true, Value = value };
+                if (!info.HasValue || msg.Value > info.Value)
+                    _counters[msg.MarkerId] = info with { HasValue = true, Value = msg.Value };
                 return;
             }
+
+            var value = info.HasValue ? Math.Max(info.Value, msg.Value) : msg.Value;
             
             _counters[msg.MarkerId] = info with { LastSampleTimestamp = msg.Timestamp, HasValue = false };
             
@@ -255,27 +300,38 @@ namespace NanoProfiler
         {
             if (_fileWriter == null)
                 return;
-            
+
+            // Budget is re-evaluated once per frame and applies until the next one.
+            var fileSize = _fileWriter.FileSize;
+            _criticalOnly = fileSize >= _settings.CriticalBudgetBytes;
+            _hardStop = fileSize >= _settings.MaxFileSizeBytes;
+
             _frameIndex++;
 
             var startupFrame = _frameIndex <= _settings.StartupFramesToWrite;
-            var spikeFrame = (msg.Timestamp - _lastFrameTimestamp) > _dynamicScopesTriggerThresholdTicks;
-            if (_settings.DynamicScopes && 
-                _frameRecorder is { IsValid: true } && 
-                ((spikeFrame && msg.Timestamp > _frameRecorderDisableUntilTimestamp) || startupFrame))
+
+            var spikeFrame = false;
+            if (_settings.DynamicScopes && _lastFrameTimestamp != 0)
+            {
+                var frameTicks = msg.Timestamp - _lastFrameTimestamp;
+                spikeFrame = _spikeDetector.IsSpike(frameTicks);
+                _spikeDetector.Push(frameTicks);
+            }
+
+            if (_settings.DynamicScopes && !_hardStop && _frameRecorder is { IsValid: true } && (spikeFrame || startupFrame))
             {
                 ReplayFrameBuffer();
-                _frameRecorderDisableUntilTimestamp = msg.Timestamp + _dynamicScopesCooldownTicks;
 
                 foreach (var threadScope in _threadTracks.Values)
                     threadScope.CloseScopes(msg.Timestamp);
             }
-            
+
             _lastFrameTimestamp = msg.Timestamp;
             _frameRecorder?.Reset();
             _fileWriter.FlushTrace();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void WriteFrameScope<T>(int threadId, Protocol.MessageType msgType, ref T value) where T : unmanaged
         {
             if (_frameRecorder == null)
@@ -310,20 +366,14 @@ namespace NanoProfiler
                     {
                         Protocol.ScopeBegin msg = default;
                         if (_frameRecorder.Read(ref position, ref msg))
-                        {
-                            var threadScope = GetOrCreateThreadScope(threadId);
-                            threadScope.Begin(ref msg);
-                        }
+                            BeginScope(threadId, ref msg);
                         break;
                     }
                     case Protocol.MessageType.ScopeEnd:
                     {
                         Protocol.ScopeEnd msg = default;
                         if (_frameRecorder.Read(ref position, ref msg))
-                        {
-                            var threadScope = GetOrCreateThreadScope(threadId);
-                            threadScope.End(ref msg);
-                        }
+                            EndScope(threadId, ref msg);
                         break;
                     }
                     default:
@@ -337,35 +387,61 @@ namespace NanoProfiler
         {
             if (_threadTracks.TryGetValue(threadId, out var threadScope))
                 return threadScope;
-            
-            threadScope = new PerfettoThreadScope(this, _fileWriter!, _settings.ProcessId, threadId, _scopeRootTrackId);
+
+            threadScope = new PerfettoThreadScope(_fileWriter!, _settings.ProcessId, threadId, _scopeRootTrackId);
             _threadTracks[threadId] = threadScope;
             return threadScope;
         }
 
-        internal ulong GetOrCreateInternedData(in uint markerId, in string? customName, out InternedData? internedData)
+        private void BeginScope(int threadId, ref Protocol.ScopeBegin msg)
         {
-            if (!_markers.TryGetValue(markerId, out var markerInfo))
+            var threadScope = GetOrCreateThreadScope(threadId);
+
+            // A dropped parent drops its whole subtree, so skip the lookup and interning.
+            if (threadScope.IsDropping)
             {
-                internedData = null;
-                return 0;
+                threadScope.Begin(msg.Timestamp, 0, null, false);
+                return;
             }
 
+            // One lookup yields both criticality and name; unknown markers emit unnamed.
+            var found = _markers.TryGetValue(msg.MarkerId, out var markerInfo);
+            if (!ShouldEmit(found && markerInfo.IsCritical))
+            {
+                threadScope.Begin(msg.Timestamp, 0, null, false);
+                return;
+            }
+
+            ulong internId = 0;
+            InternedData? internedData = null;
+            if (found)
+                internId = ResolveInternId(msg.MarkerId, markerInfo, out internedData);
+
+            threadScope.Begin(msg.Timestamp, internId, internedData, true);
+        }
+
+        private void EndScope(int threadId, ref Protocol.ScopeEnd msg)
+        {
+            GetOrCreateThreadScope(threadId).End(msg.Timestamp);
+        }
+
+        private ulong ResolveInternId(uint markerId, MarkerInfo markerInfo, out InternedData? internedData)
+        {
             if (markerInfo.Interned)
             {
                 internedData = null;
                 return markerInfo.InternId;
             }
-             
+
             var uuid = _fileWriter!.GetNextUniqueId();
             internedData = _fileWriter.GetInternedData();
-            
+
             var eventName = _fileWriter.GetEventName();
             eventName.Iid = uuid;
-            eventName.Name = customName ?? markerInfo.Name;
-            
+            eventName.Name = markerInfo.Name;
+
             internedData.EventNames.Add(eventName);
-            
+
             _markers[markerId] = markerInfo with { Interned = true, InternId = uuid };
             return uuid;
         }
@@ -427,7 +503,7 @@ namespace NanoProfiler
             packet.TrackDescriptor = trackDescriptor;
             _fileWriter.AddPacket(packet);
 
-            info = new CounterInfo(uuid, 0, false, 0);
+            info = new CounterInfo(uuid, markerInfo.IsCritical, 0, false, 0);
             _counters[markerId] = info;
             return true;
         }
@@ -435,34 +511,59 @@ namespace NanoProfiler
         private static string MakeUniqueId(string name, TypedAttribute param1, TypedAttribute param2, TypedAttribute param3, StringBuilder sb)
         {
             sb.Clear();
-            
-            // Special case if the first parameter is a string. For UX bring it first than
-            sb.Append(param1.ParamType == TypedAttribute.ValueType.String ? $"{param1.AsString} - {name}" : name);
+
+            // Special case if the first parameter is a string. For UX bring it first.
+            if (param1.ParamType == TypedAttribute.ValueType.String)
+            {
+                sb.Append(param1.AsString);
+                sb.Append(" - ");
+                sb.Append(name);
+            }
+            else
+            {
+                sb.Append(name);
+            }
 
             if (param1.ParamType != TypedAttribute.ValueType.None && param1.ParamType != TypedAttribute.ValueType.String)
-                sb.Append($"[{FormatTypedAttribute(param1)}");
+            {
+                sb.Append('[');
+                AppendTypedAttribute(sb, param1);
+                sb.Append(']');
+            }
             if (param2.ParamType != TypedAttribute.ValueType.None)
-                sb.Append($"[{FormatTypedAttribute(param2)}]");
+            {
+                sb.Append('[');
+                AppendTypedAttribute(sb, param2);
+                sb.Append(']');
+            }
             if (param3.ParamType != TypedAttribute.ValueType.None)
-                sb.Append($"[{FormatTypedAttribute(param3)}]");
-            
+            {
+                sb.Append('[');
+                AppendTypedAttribute(sb, param3);
+                sb.Append(']');
+            }
+
             return sb.ToString();
         }
 
-        private static string FormatTypedAttribute(TypedAttribute param)
+        private static void AppendTypedAttribute(StringBuilder sb, TypedAttribute param)
         {
             switch (param.ParamType)
             {
                 case TypedAttribute.ValueType.None:
-                    return string.Empty;
+                    break;
                 case TypedAttribute.ValueType.Bool:
-                    return param.AsBool.ToString();
+                    sb.Append(param.AsBool);
+                    break;
                 case TypedAttribute.ValueType.Int:
-                    return param.AsInt.ToString();
+                    sb.Append(param.AsInt);
+                    break;
                 case TypedAttribute.ValueType.Float:
-                    return param.AsFloat.ToString(CultureInfo.InvariantCulture);
+                    sb.Append(param.AsFloat.ToString(CultureInfo.InvariantCulture));
+                    break;
                 case TypedAttribute.ValueType.String:
-                    return param.AsString;
+                    sb.Append(param.AsString);
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }

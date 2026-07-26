@@ -1,5 +1,6 @@
 ﻿#nullable enable
 using System;
+using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 
 namespace NanoProfiler;
@@ -40,16 +41,10 @@ public struct PerfettoProcessorSettings
     public bool DynamicScopes { get; init; } = false;
         
     /// <summary>
-    /// Threshold in milliseconds for triggering dynamic scope to be recorded
-    /// in the output stream.
+    /// Absolute floor in milliseconds below which a frame is never a spike, regardless
+    /// of the adaptive baseline. The spike threshold is max(this, baseline median * ratio).
     /// </summary>
-    public float DynamicScopesTriggerThresholdMs { get; init; } = 50.0f;
-        
-    /// <summary>
-    /// Cooldown between dynamic scope recordings in milliseconds. Any frames
-    /// recorded during the cooldown won't be recorded into the output stream.
-    /// </summary>
-    public float DynamicScopesCooldownMs { get; init; } = 2000.0f;
+    public float SpikeMinimumMs { get; init; } = 50.0f;
         
     /// <summary>
     /// Size of the buffer used to record dynamic scopes in bytes.
@@ -61,7 +56,36 @@ public struct PerfettoProcessorSettings
     /// regardless of dynamic scopes settings. This is useful for startup profiling.
     /// </summary>
     public int StartupFramesToWrite { get; init; } = 20;
-        
+
+    /// <summary>
+    /// Soft budget in bytes: above it only events whose group is flagged
+    /// <see cref="MarkerFlags.Critical"/> are kept. Must be below <see cref="MaxFileSizeBytes"/>.
+    /// </summary>
+    public long CriticalBudgetBytes { get; init; } = 30L * 1024 * 1024;
+
+    /// <summary>
+    /// Hard budget in bytes: above it nothing is written, so the file stays valid and
+    /// uploadable. The tail of very long sessions is lost in exchange.
+    /// </summary>
+    public long MaxFileSizeBytes { get; init; } = 40L * 1024 * 1024;
+
+    /// <summary>
+    /// Frames of rolling baseline for adaptive spike detection. Kept short so the baseline
+    /// reacts within ~half its length; larger is steadier but slower to adapt.
+    /// </summary>
+    public int SpikeWindowFrames { get; init; } = 8;
+
+    /// <summary>
+    /// Multiplier on the baseline median frame time for the spike threshold, so naturally
+    /// slow devices don't flag every frame.
+    /// </summary>
+    public float SpikeRatioMultiplier { get; init; } = 1.5f;
+
+    /// <summary>
+    /// Optional free-form capture metadata (device, GPU, version, ...).
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? Metadata { get; init; } = null;
+
     public PerfettoProcessorSettings()
     {
     }

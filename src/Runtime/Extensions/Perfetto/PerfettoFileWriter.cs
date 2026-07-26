@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using Google.Protobuf;
@@ -55,6 +56,8 @@ namespace NanoProfiler
         }
 
         public bool IsFirstPacketInSequence { get; set; }
+
+        public long FileSize => _fileStream?.Position ?? 0;
 
         public TracePacket GetPacket() => _packetPool.Get();
         public TrackEvent GetTrackEvent() => _trackEventPool.Get();
@@ -126,6 +129,32 @@ namespace NanoProfiler
             packet.TrackDescriptor = trackDescriptor;
             AddPacket(packet);
             return trackId;
+        }
+
+        public void AddTraceAttributes(IReadOnlyDictionary<string, string> metadata)
+        {
+            if (_fileStream == null || metadata == null || metadata.Count == 0)
+                return;
+
+            var attributes = new TraceAttributes();
+            foreach (var kv in metadata)
+            {
+                if (kv.Key == null || kv.Value == null)
+                    continue;
+
+                attributes.Attribute.Add(new TraceAttributes.Types.Attribute
+                {
+                    Key = kv.Key,
+                    StringValue = kv.Value,
+                });
+            }
+
+            if (attributes.Attribute.Count == 0)
+                return;
+
+            var packet = GetPacket();
+            packet.TraceAttributes = attributes;
+            AddPacket(packet);
         }
 
         public ulong AddTrack(string name, ulong parentUuid = 0)
