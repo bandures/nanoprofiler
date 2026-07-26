@@ -117,7 +117,7 @@ namespace NanoProfiler
                 builder.AllowPassCulling(false);
                 builder.UseTexture(resourceData.backBufferColor, AccessFlags.Write);
                 
-                builder.SetRenderFunc((PassData data, UnsafeGraphContext context) =>
+                builder.SetRenderFunc(static (PassData data, UnsafeGraphContext context) =>
                 {
                     context.cmd.SetRenderTarget(data.ColorTarget);
                     ExecutePass(data, context);

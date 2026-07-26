@@ -370,7 +370,7 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int TrustedUid {
-      get { return HasTrustedUid ? (int) optionalTrustedUid_ : 0; }
+      get { return HasTrustedUid ? optionalTrustedUid_ : 0; }
       set {
         optionalTrustedUid_ = value;
         optionalTrustedUidCase_ = OptionalTrustedUidOneofCase.TrustedUid;
@@ -396,7 +396,7 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public uint TrustedPacketSequenceId {
-      get { return HasTrustedPacketSequenceId ? (uint) optionalTrustedPacketSequenceId_ : 0; }
+      get { return HasTrustedPacketSequenceId ? optionalTrustedPacketSequenceId_ : 0; }
       set {
         optionalTrustedPacketSequenceId_ = value;
         optionalTrustedPacketSequenceIdCase_ = OptionalTrustedPacketSequenceIdOneofCase.TrustedPacketSequenceId;
@@ -685,7 +685,7 @@ namespace Perfetto.Protos {
       data_ = null;
     }
 
-    private object optionalTrustedUid_;
+    private int optionalTrustedUid_;
     /// <summary>Enum of possible cases for the "optional_trusted_uid" oneof.</summary>
     public enum OptionalTrustedUidOneofCase {
       None = 0,
@@ -702,10 +702,9 @@ namespace Perfetto.Protos {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearOptionalTrustedUid() {
       optionalTrustedUidCase_ = OptionalTrustedUidOneofCase.None;
-      optionalTrustedUid_ = null;
     }
 
-    private object optionalTrustedPacketSequenceId_;
+    private uint optionalTrustedPacketSequenceId_;
     /// <summary>Enum of possible cases for the "optional_trusted_packet_sequence_id" oneof.</summary>
     public enum OptionalTrustedPacketSequenceIdOneofCase {
       None = 0,
@@ -722,7 +721,6 @@ namespace Perfetto.Protos {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearOptionalTrustedPacketSequenceId() {
       optionalTrustedPacketSequenceIdCase_ = OptionalTrustedPacketSequenceIdOneofCase.None;
-      optionalTrustedPacketSequenceId_ = null;
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
