@@ -69,6 +69,7 @@ namespace NanoProfiler
                 new(profiler, CommonMarkers.MEMORY_TOTAL_MARKER_ID, CounterUnit.Bytes, ProfilerCategory.Scripts, "App Committed Memory"),
                 new(profiler, CommonMarkers.MEMORY_GC_RESERVED_MARKER_ID, CounterUnit.Bytes, ProfilerCategory.Scripts, "GC Reserved Memory"),
                 new(profiler, CommonMarkers.MEMORY_GC_USED_MARKER_ID, CounterUnit.Bytes, ProfilerCategory.Scripts, "GC Used Memory"),
+                new(profiler, CommonMarkers.MEMORY_OBJECT_COUNT_MARKER_ID, CounterUnit.Default, ProfilerCategory.Memory),
                 new(profiler, CommonMarkers.GFX_DRAW_CALLS_COUNT_MARKER_ID, CounterUnit.Default, ProfilerCategory.Render),
                 new(profiler, CommonMarkers.GFX_TRIANGLES_COUNT_MARKER_ID, CounterUnit.Default, ProfilerCategory.Render),
             });

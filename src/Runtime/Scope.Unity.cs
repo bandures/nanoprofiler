@@ -26,7 +26,7 @@ namespace NanoProfiler
 
         internal void Begin()
         {
-            if (!_profiler.IsGroupEnabled(_groupId))
+            if (_profiler == null || !_profiler.IsGroupEnabled(_groupId))
                 return;
             if (!_flags.HasFlag(MarkerFlags.DontReflectToUnity))
                 _unityProfilerMarker.Begin();
@@ -35,7 +35,7 @@ namespace NanoProfiler
 
         internal void End()
         {
-            if (!_profiler.IsGroupEnabled(_groupId))
+            if (_profiler == null || !_profiler.IsGroupEnabled(_groupId))
                 return;
             _profiler.CurrentThread.EmitEndScope(_id);
             if (!_flags.HasFlag(MarkerFlags.DontReflectToUnity))

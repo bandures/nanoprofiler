@@ -27,7 +27,7 @@ namespace NanoProfiler
 
         private int Begin(TypedAttribute param1 = default, TypedAttribute param2 = default, TypedAttribute param3 = default)
         {
-            if (!_profiler.IsGroupEnabled(_groupId))
+            if (_profiler == null || !_profiler.IsGroupEnabled(_groupId))
                 return Profiler.INVALID_ID;
             return _profiler.CurrentThread.EmitBeginActivity(_id, ref param1, ref param2, ref param3);
         }

@@ -16,6 +16,8 @@
         public const string MEMORY_GC_RESERVED_MARKER_ID = "Reserved Heap Memory";
         public const string MEMORY_GC_USED_MARKER_ID = "Used Heap Memory";
 
+        public const string MEMORY_OBJECT_COUNT_MARKER_ID = "Object Count";
+
         public const string LOGIC_MODEL_UPDATE_MARKER_ID = "Model Update";
         public const string LOGIC_VIEW_UPDATE_MARKER_ID = "View Update";
         public const string LOGIC_UI_UPDATE_MARKER_ID = "UI Update";
