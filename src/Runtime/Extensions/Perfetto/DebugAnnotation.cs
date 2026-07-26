@@ -208,9 +208,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public ulong NameIid {
-      get { return HasNameIid ? (ulong) nameField_ : 0UL; }
+      get { return HasNameIid ? nameField_UInt64_ : 0UL; }
       set {
-        nameField_ = value;
+        nameField_UInt64_ = value;
         nameFieldCase_ = NameFieldOneofCase.NameIid;
       }
     }
@@ -237,9 +237,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public string Name {
-      get { return HasName ? (string) nameField_ : ""; }
+      get { return HasName ? nameField_String_ : ""; }
       set {
-        nameField_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+        nameField_String_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
         nameFieldCase_ = NameFieldOneofCase.Name;
       }
     }
@@ -263,9 +263,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool BoolValue {
-      get { return HasBoolValue ? (bool) value_ : false; }
+      get { return HasBoolValue ? valueUnion_.Bool : false; }
       set {
-        value_ = value;
+        valueUnion_.Bool = value;
         valueCase_ = ValueOneofCase.BoolValue;
       }
     }
@@ -289,9 +289,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public ulong UintValue {
-      get { return HasUintValue ? (ulong) value_ : 0UL; }
+      get { return HasUintValue ? valueUnion_.UInt64 : 0UL; }
       set {
-        value_ = value;
+        valueUnion_.UInt64 = value;
         valueCase_ = ValueOneofCase.UintValue;
       }
     }
@@ -315,9 +315,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public long IntValue {
-      get { return HasIntValue ? (long) value_ : 0L; }
+      get { return HasIntValue ? valueUnion_.Int64 : 0L; }
       set {
-        value_ = value;
+        valueUnion_.Int64 = value;
         valueCase_ = ValueOneofCase.IntValue;
       }
     }
@@ -341,9 +341,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public double DoubleValue {
-      get { return HasDoubleValue ? (double) value_ : 0D; }
+      get { return HasDoubleValue ? valueUnion_.Double : 0D; }
       set {
-        value_ = value;
+        valueUnion_.Double = value;
         valueCase_ = ValueOneofCase.DoubleValue;
       }
     }
@@ -371,9 +371,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public ulong PointerValue {
-      get { return HasPointerValue ? (ulong) value_ : 0UL; }
+      get { return HasPointerValue ? valueUnion_.UInt64 : 0UL; }
       set {
-        value_ = value;
+        valueUnion_.UInt64 = value;
         valueCase_ = ValueOneofCase.PointerValue;
       }
     }
@@ -400,9 +400,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public global::Perfetto.Protos.DebugAnnotation.Types.NestedValue NestedValue {
-      get { return valueCase_ == ValueOneofCase.NestedValue ? (global::Perfetto.Protos.DebugAnnotation.Types.NestedValue) value_ : null; }
+      get { return valueCase_ == ValueOneofCase.NestedValue ? value_NestedValue_ : null; }
       set {
-        value_ = value;
+        value_NestedValue_ = value;
         valueCase_ = value == null ? ValueOneofCase.None : ValueOneofCase.NestedValue;
       }
     }
@@ -416,9 +416,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public string LegacyJsonValue {
-      get { return HasLegacyJsonValue ? (string) value_ : ""; }
+      get { return HasLegacyJsonValue ? value_String_ : ""; }
       set {
-        value_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+        value_String_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
         valueCase_ = ValueOneofCase.LegacyJsonValue;
       }
     }
@@ -445,9 +445,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public string StringValue {
-      get { return HasStringValue ? (string) value_ : ""; }
+      get { return HasStringValue ? value_String_ : ""; }
       set {
-        value_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+        value_String_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
         valueCase_ = ValueOneofCase.StringValue;
       }
     }
@@ -474,9 +474,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public ulong StringValueIid {
-      get { return HasStringValueIid ? (ulong) value_ : 0UL; }
+      get { return HasStringValueIid ? valueUnion_.UInt64 : 0UL; }
       set {
-        value_ = value;
+        valueUnion_.UInt64 = value;
         valueCase_ = ValueOneofCase.StringValueIid;
       }
     }
@@ -500,9 +500,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public string ProtoTypeName {
-      get { return HasProtoTypeName ? (string) protoTypeDescriptor_ : ""; }
+      get { return HasProtoTypeName ? protoTypeDescriptor_String_ : ""; }
       set {
-        protoTypeDescriptor_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+        protoTypeDescriptor_String_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
         protoTypeDescriptorCase_ = ProtoTypeDescriptorOneofCase.ProtoTypeName;
       }
     }
@@ -529,9 +529,9 @@ namespace Perfetto.Protos {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public ulong ProtoTypeNameIid {
-      get { return HasProtoTypeNameIid ? (ulong) protoTypeDescriptor_ : 0UL; }
+      get { return HasProtoTypeNameIid ? protoTypeDescriptor_UInt64_ : 0UL; }
       set {
-        protoTypeDescriptor_ = value;
+        protoTypeDescriptor_UInt64_ = value;
         protoTypeDescriptorCase_ = ProtoTypeDescriptorOneofCase.ProtoTypeNameIid;
       }
     }
@@ -598,7 +598,8 @@ namespace Perfetto.Protos {
       get { return arrayValues_; }
     }
 
-    private object nameField_;
+    private ulong nameField_UInt64_;
+    private string nameField_String_;
     /// <summary>Enum of possible cases for the "name_field" oneof.</summary>
     public enum NameFieldOneofCase {
       None = 0,
@@ -616,10 +617,20 @@ namespace Perfetto.Protos {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearNameField() {
       nameFieldCase_ = NameFieldOneofCase.None;
-      nameField_ = null;
+      nameField_String_ = null;
     }
 
-    private object value_;
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit)]
+    private struct ValueUnion
+    {
+        [System.Runtime.InteropServices.FieldOffset(0)] public bool Bool;
+        [System.Runtime.InteropServices.FieldOffset(0)] public ulong UInt64;
+        [System.Runtime.InteropServices.FieldOffset(0)] public long Int64;
+        [System.Runtime.InteropServices.FieldOffset(0)] public double Double;
+    }
+    private ValueUnion valueUnion_;
+    private string value_String_;
+    private global::Perfetto.Protos.DebugAnnotation.Types.NestedValue value_NestedValue_;
     /// <summary>Enum of possible cases for the "value" oneof.</summary>
     public enum ValueOneofCase {
       None = 0,
@@ -644,10 +655,12 @@ namespace Perfetto.Protos {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearValue() {
       valueCase_ = ValueOneofCase.None;
-      value_ = null;
+      value_String_ = null;
+      value_NestedValue_ = null;
     }
 
-    private object protoTypeDescriptor_;
+    private ulong protoTypeDescriptor_UInt64_;
+    private string protoTypeDescriptor_String_;
     /// <summary>Enum of possible cases for the "proto_type_descriptor" oneof.</summary>
     public enum ProtoTypeDescriptorOneofCase {
       None = 0,
@@ -665,7 +678,7 @@ namespace Perfetto.Protos {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearProtoTypeDescriptor() {
       protoTypeDescriptorCase_ = ProtoTypeDescriptorOneofCase.None;
-      protoTypeDescriptor_ = null;
+      protoTypeDescriptor_String_ = null;
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
