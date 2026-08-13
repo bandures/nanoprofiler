@@ -36,6 +36,11 @@ using var _ = activity.Auto(1234, "StringParam");
 Counter counter = profiler.CreateCounter("YourCounterName");
 counter.Sample(12345);
 
+// For points in time
+Event evt = profiler.CreateEvent("YourEventName");
+evt.Record();
+evt.Record(1234, "StringParam");
+
 // For larger projects with many markers for activation/deactivation
 Group group = profiler.CreateGroup("YourGroupName");
 var scope = group.CreateScope("YourScopeInAGroup");
@@ -46,6 +51,7 @@ var counter = group.CreateCounter("YourCounterInAGroup");
 - `Scope` - should be use when the measured section is local and synchronous. Scope is hierarchical and will show nested scope markers within hierarchy. However, it also mean that any child scopes should end before parent scope ends.
 - `Activity` - could be used to measure sections which is longer than a frame or asynchronous. It doesn’t provide hierarchy, but that also means you can nest activities even if nested activity will end after any activity higher in the call chain.
 - `Counter` -  is for numeric gauge values, which can go up and down.
+- `Event` - records a point in time with no duration, like an input or a state transition. Exported as a Perfetto instant on the group's own track.
 - `Group` - allows disabling/enabling a group of scopes, activities and counters.
 
 ## Implementation details

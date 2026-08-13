@@ -23,8 +23,11 @@ namespace NanoProfiler
             _id = profiler.RegisterGroup(name, flags);
         }
         
+        public bool IsEnabled => _profiler != null && _profiler.IsGroupEnabled(_id);
+
         public Activity CreateActivity(string name) => _profiler.CreateActivity(name, _id, _flags);
         public Scope CreateScope(string name) => _profiler.CreateScope(name, _id, _flags);
         public Counter CreateCounter(string name) => _profiler.CreateCounter(name, _id);
+        public Event CreateEvent(string name) => _profiler.CreateEvent(name, _id, _flags);
     }
 }

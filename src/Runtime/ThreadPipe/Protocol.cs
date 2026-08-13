@@ -23,7 +23,9 @@
             
             ActivityBegin,
             ActivityEnd,
-            
+
+            Event,
+
             RegisterGroup,
             
             Fence,
@@ -176,6 +178,24 @@
                 serializer.Transfer(ref MarkerId);
                 serializer.Transfer(ref UniqueId);
                 serializer.Transfer(ref Timestamp);
+            }
+        }
+
+        public struct Event : IMessage
+        {
+            public uint MarkerId;
+            public long Timestamp;
+            public TypedAttribute Param1;
+            public TypedAttribute Param2;
+            public TypedAttribute Param3;
+
+            public void Transfer(ISerializer serializer)
+            {
+                serializer.Transfer(ref MarkerId);
+                serializer.Transfer(ref Timestamp);
+                Param1.Transfer(serializer);
+                Param2.Transfer(serializer);
+                Param3.Transfer(serializer);
             }
         }
 

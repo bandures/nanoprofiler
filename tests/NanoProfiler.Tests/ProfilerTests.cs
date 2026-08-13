@@ -116,5 +116,26 @@ namespace NanoProfiler.Tests
             for (int i = 0; i < capacity * 2; i++)
                 profiler.CreateScope($"scope-{i}");
         }
+
+        public void Recreate_WithSmallerConfiguredCapacity_KeepsExistingInstrumentsUsable()
+        {
+            using var previous = new Profiler(new ProfilerSettingsBuilder().WithGroupsCapacity(64).Build());
+
+            // Fill past the default capacity so the recreated profiler would have to drop groups.
+            for (var i = 0; i < new ProfilerSettings().MaxGroups + 4; i++)
+                previous.CreateGroup($"group_{i}");
+
+            var group = previous.CreateGroup("late_group");
+            var scope = group.CreateScope("scope");
+
+            using var recreated = new Profiler(new ProfilerSettingsBuilder().EnableGroups("late_group").Build(), previous);
+
+            Assert.IsTrue(group.IsEnabled, "Group id must still resolve to the same group after the profiler is recreated");
+            Assert.DoesNotThrow(() =>
+            {
+                using var _ = scope.Auto();
+            });
+        }
+
     }
 }

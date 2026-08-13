@@ -163,6 +163,9 @@ namespace NanoProfiler
                     case Protocol.MessageType.ActivityEnd:
                         HandleMessage<Protocol.ActivityEnd>(profilerThread.ThreadId, profilerThread.DataSource);
                         break;
+                    case Protocol.MessageType.Event:
+                        HandleMessage<Protocol.Event>(profilerThread.ThreadId, profilerThread.DataSource);
+                        break;
 
                     // Fence is handled directly here as it affects the thread profiler state
                     case Protocol.MessageType.Fence:

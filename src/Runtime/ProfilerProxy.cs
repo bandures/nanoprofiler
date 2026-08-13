@@ -40,5 +40,6 @@ namespace NanoProfiler
         internal Scope CreateScope(string name, uint groupId, MarkerFlags flags) => new(_profiler, name, groupId, flags);
         internal Activity CreateActivity(string name, uint groupId, MarkerFlags flags) => new(_profiler, name, groupId, flags);
         internal Counter CreateCounter(string name, uint groupId) => new(_profiler, name, groupId);
+        internal Event CreateEvent(string name, uint groupId, MarkerFlags flags) => new(_profiler, name, groupId, flags);
     }
 }

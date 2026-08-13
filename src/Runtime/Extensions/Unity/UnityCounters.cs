@@ -7,7 +7,7 @@ using UnityEngine.PlayerLoop;
 namespace NanoProfiler
 {
     /// <summary>
-    /// Profiler service which adds CPU, GPU and other
+    /// Profiler service which adds CPU, GPU, and other
     /// Unity counters to the profiler stream. 
     /// </summary>
     public sealed class UnityCounters : IProfilerService
@@ -19,10 +19,10 @@ namespace NanoProfiler
             private readonly Counter _counter;
             private ProfilerRecorder _recorder;
             
-            public UnityCounter(Profiler profiler, string id, CounterUnit unitType, ProfilerCategory category, string recorderId = null)
+            public UnityCounter(Group group, string id, CounterUnit unitType, ProfilerCategory category, string recorderId = null)
             {
                 _unitType = unitType;
-                _counter = profiler.CreateCounter(id);
+                _counter = group.CreateCounter(id);
                 _recorder = new ProfilerRecorder(category, recorderId ?? id);
             }
             
@@ -42,36 +42,23 @@ namespace NanoProfiler
         private readonly Counter _mainThreadFrameCounter;
         private readonly Counter _renderThreadFrameCounter;
         private readonly Counter _gpuFrameCounter;
-        private readonly Counter _soundUpdateUsageCounter;
-        private readonly Counter _soundDSPUsageCounter;
-        private readonly Counter _soundChannelsCountCounter;
-        private readonly Counter _soundVoicesCounter;
         private readonly List<UnityCounter> _unityCounters = new();
         private readonly FrameTiming[] _frameTimings = new FrameTiming[1];
 
-        public UnityCounters(Profiler profiler)
+        public UnityCounters(Group group)
         {
-            _mainThreadFrameCounter = profiler.CreateCounter(CommonMarkers.CPU_MAIN_THREAD_FRAME_MARKER_ID);
-            _renderThreadFrameCounter = profiler.CreateCounter(CommonMarkers.CPU_RENDER_THREAD_FRAME_MARKER_ID);
-            _gpuFrameCounter = profiler.CreateCounter(CommonMarkers.GPU_FRAME_MARKER_ID);
-            _soundUpdateUsageCounter = profiler.CreateCounter(CommonMarkers.CPU_SOUND_UPDATE_MARKER_ID);
-            _soundDSPUsageCounter = profiler.CreateCounter(CommonMarkers.CPU_SOUND_DSP_MARKER_ID);
-            _soundChannelsCountCounter = profiler.CreateCounter(CommonMarkers.SOUND_CHANNELS_COUNT_MARKER_ID);
-            _soundVoicesCounter = profiler.CreateCounter(CommonMarkers.SOUND_VOICES_COUNT_MARKER_ID);
+            _mainThreadFrameCounter = group.CreateCounter(CommonMarkers.CPU_MAIN_THREAD_FRAME_MARKER_ID);
+            _renderThreadFrameCounter = group.CreateCounter(CommonMarkers.CPU_RENDER_THREAD_FRAME_MARKER_ID);
+            _gpuFrameCounter = group.CreateCounter(CommonMarkers.GPU_FRAME_MARKER_ID);
             
             _unityCounters.AddRange(new List<UnityCounter>()
             {
-                // This is changed to FTM direct API instead, due to Unity recorders stop reporting data.
-                // It seems that Unity recorders are deactivated? Needs more investigation.
-//                new(CPU_MAIN_THREAD_FRAME_MARKER_ID, CounterUnit.Milliseconds, ProfilerCategory.Scripts),
-//                new(CPU_RENDER_THREAD_FRAME_MARKER_ID, CounterUnit.Milliseconds, ProfilerCategory.Scripts),
-//                new(GPU_FRAME_MARKER_ID, CounterUnit.Milliseconds, ProfilerCategory.Render),
-                new(profiler, CommonMarkers.MEMORY_TOTAL_MARKER_ID, CounterUnit.Bytes, ProfilerCategory.Scripts, "App Committed Memory"),
-                new(profiler, CommonMarkers.MEMORY_GC_RESERVED_MARKER_ID, CounterUnit.Bytes, ProfilerCategory.Scripts, "GC Reserved Memory"),
-                new(profiler, CommonMarkers.MEMORY_GC_USED_MARKER_ID, CounterUnit.Bytes, ProfilerCategory.Scripts, "GC Used Memory"),
-                new(profiler, CommonMarkers.MEMORY_OBJECT_COUNT_MARKER_ID, CounterUnit.Default, ProfilerCategory.Memory),
-                new(profiler, CommonMarkers.GFX_DRAW_CALLS_COUNT_MARKER_ID, CounterUnit.Default, ProfilerCategory.Render),
-                new(profiler, CommonMarkers.GFX_TRIANGLES_COUNT_MARKER_ID, CounterUnit.Default, ProfilerCategory.Render),
+                new(group, CommonMarkers.MEMORY_TOTAL_MARKER_ID, CounterUnit.Bytes, ProfilerCategory.Scripts, "App Committed Memory"),
+                new(group, CommonMarkers.MEMORY_GC_RESERVED_MARKER_ID, CounterUnit.Bytes, ProfilerCategory.Scripts, "GC Reserved Memory"),
+                new(group, CommonMarkers.MEMORY_GC_USED_MARKER_ID, CounterUnit.Bytes, ProfilerCategory.Scripts, "GC Used Memory"),
+                new(group, CommonMarkers.MEMORY_OBJECT_COUNT_MARKER_ID, CounterUnit.Default, ProfilerCategory.Memory),
+                new(group, CommonMarkers.GFX_DRAW_CALLS_COUNT_MARKER_ID, CounterUnit.Default, ProfilerCategory.Render),
+                new(group, CommonMarkers.GFX_TRIANGLES_COUNT_MARKER_ID, CounterUnit.Default, ProfilerCategory.Render),
             });
         }
         
@@ -99,18 +86,18 @@ namespace NanoProfiler
             foreach (var counter in _unityCounters)
                 counter.Sample();
 
-            if (FrameTimingManager.IsFeatureEnabled())
-            {
-                FrameTimingManager.CaptureFrameTimings();
-                uint framesCount = FrameTimingManager.GetLatestTimings((uint)_frameTimings.Length, _frameTimings);
-                if (framesCount > 0)
-                {
-                    var frame = _frameTimings[0];
-                    _mainThreadFrameCounter.Sample((float)frame.cpuFrameTime);
-                    _renderThreadFrameCounter.Sample((float)frame.cpuRenderThreadFrameTime);
-                    _gpuFrameCounter.Sample((float)frame.gpuFrameTime);
-                }
-            }
+            if (!FrameTimingManager.IsFeatureEnabled())
+                return;
+            
+            FrameTimingManager.CaptureFrameTimings();
+            var framesCount = FrameTimingManager.GetLatestTimings((uint)_frameTimings.Length, _frameTimings);
+            if (framesCount <= 0)
+                return;
+            
+            var frame = _frameTimings[0];
+            _mainThreadFrameCounter.Sample((float)frame.cpuFrameTime);
+            _renderThreadFrameCounter.Sample((float)frame.cpuRenderThreadFrameTime);
+            _gpuFrameCounter.Sample((float)frame.gpuFrameTime);
         }
     }
 }

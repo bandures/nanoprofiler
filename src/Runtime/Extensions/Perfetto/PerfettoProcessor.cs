@@ -19,6 +19,7 @@ namespace NanoProfiler
         IProcessor<Protocol.ScopeEnd>,
         IProcessor<Protocol.ActivityBegin>,
         IProcessor<Protocol.ActivityEnd>,
+        IProcessor<Protocol.Event>,
         IProcessor<Protocol.CounterSample>,
         IProcessor<Protocol.Frame>
     {
@@ -31,6 +32,7 @@ namespace NanoProfiler
         private readonly Dictionary<uint, GroupInfo> _groups = new();
         private readonly Dictionary<uint, MarkerInfo> _markers = new();
         private readonly Dictionary<string, ActivityInfo> _activities = new();
+        private readonly Dictionary<string, ulong> _eventNames = new();
         private readonly Dictionary<int, ulong> _openActivities = new();
         private readonly Dictionary<uint, CounterInfo> _counters = new();
         private readonly Dictionary<int, PerfettoThreadScope> _threadTracks = new();
@@ -125,6 +127,7 @@ namespace NanoProfiler
             _groups.Clear();
             _markers.Clear();
             _activities.Clear();
+            _eventNames.Clear();
             _openActivities.Clear();
             _counters.Clear();
             _threadTracks.Clear();
@@ -264,6 +267,28 @@ namespace NanoProfiler
             trackEvent.TrackUuid = trackId;
 
             _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, null, false);
+        }
+
+        public void HandleMessage(int threadId, ref Protocol.Event msg)
+        {
+            if (_fileWriter == null)
+                return;
+
+            if (!_markers.TryGetValue(msg.MarkerId, out var markerInfo))
+                return;
+
+            if (!ShouldEmit(markerInfo.IsCritical))
+                return;
+
+            var name = MakeUniqueId(markerInfo.Name, msg.Param1, msg.Param2, msg.Param3, _stringBuilder);
+            var internId = RegisterEventName(name, out var internedData);
+
+            var trackEvent = _fileWriter.GetTrackEvent();
+            trackEvent.Type = TrackEvent.Types.Type.Instant;
+            trackEvent.NameIid = internId;
+            trackEvent.TrackUuid = markerInfo.GroupTrackId;
+
+            _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, internedData, true);
         }
 
         public void HandleMessage(int threadId, ref Protocol.CounterSample msg)
@@ -478,6 +503,27 @@ namespace NanoProfiler
             _activities[name] = new ActivityInfo(trackId, internId);
             _openActivities[uniqueId] = trackId;
             return (trackId, internId);
+        }
+
+        private ulong RegisterEventName(string name, out InternedData? internedData)
+        {
+            if (_eventNames.TryGetValue(name, out var known))
+            {
+                internedData = null;
+                return known;
+            }
+
+            var internId = _fileWriter!.GetNextUniqueId();
+            internedData = _fileWriter.GetInternedData();
+
+            var eventName = _fileWriter.GetEventName();
+            eventName.Iid = internId;
+            eventName.Name = name;
+
+            internedData.EventNames.Add(eventName);
+
+            _eventNames[name] = internId;
+            return internId;
         }
 
         private bool RegisterCounter(uint markerId, out CounterInfo info)

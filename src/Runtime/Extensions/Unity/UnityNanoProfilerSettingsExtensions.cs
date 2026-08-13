@@ -11,9 +11,9 @@ namespace NanoProfiler
             return builder;
         }
         
-        public static ProfilerSettingsBuilder AddUnityCounters(this ProfilerSettingsBuilder builder, Profiler profiler)
+        public static ProfilerSettingsBuilder AddUnityCounters(this ProfilerSettingsBuilder builder, Group profilerGroup)
         {
-            builder.AddService(new UnityCounters(profiler));
+            builder.AddService(new UnityCounters(profilerGroup));
             return builder;
         }
         

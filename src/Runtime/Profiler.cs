@@ -62,22 +62,28 @@ namespace NanoProfiler
             _dataReadySignal = new ManualResetEventSlim(false);
             
             _enabled = false;
-            _groups = new FixedArray<GroupInfo>(settings.MaxGroups);
-            _groupNameToId = new Dictionary<string, uint>(settings.MaxGroups);
-            _markers = new FixedArray<MarkerInfo>(settings.MaxMarkers);
-            _markerNameToId = new Dictionary<string, uint>(settings.MaxMarkers);
+
+            // Inherited instruments keep their ids, so a recreated profiler can never have smaller containers
+            var maxGroups = Math.Max(settings.MaxGroups, inheritFrom?._groups.Capacity ?? 0);
+            var maxMarkers = Math.Max(settings.MaxMarkers, inheritFrom?._markers.Capacity ?? 0);
+
+            _groups = new FixedArray<GroupInfo>(maxGroups);
+            _groupNameToId = new Dictionary<string, uint>(maxGroups);
+            _markers = new FixedArray<MarkerInfo>(maxMarkers);
+            _markerNameToId = new Dictionary<string, uint>(maxMarkers);
             _threads = new FixedArray<ThreadLocalProfiler>(settings.MaxThreads);
-            
+
             _perThreadProfiler = new(() => new ThreadLocalProfiler(this, _dataReadySignal) { Enabled = _enabled }, true);
 
             _proxy = inheritFrom?.Proxy ?? new ProfilerProxy();
 
-            _proxy.Setup(this);
             SetupDefaultInstruments();
             InheritInstruments(inheritFrom);
             CreateProcessors(out _processors);
             SetupGroups(settings.EnabledGroups);
-            
+
+            _proxy.Setup(this);
+
             if (_settings.AutoStart)
                 Start();
         }
@@ -242,6 +248,11 @@ namespace NanoProfiler
         public Counter CreateCounter(string name) => new(this, name, INVALID_ID);
 
         /// <summary>
+        /// Returns a new or existing point in time event instrument assigned to the default group
+        /// </summary>
+        public Event CreateEvent(string name) => new(this, name, INVALID_ID);
+
+        /// <summary>
         /// Returns pipes statstics
         /// </summary>
         /// <param name="transferredBytes"></param>
@@ -397,11 +408,6 @@ namespace NanoProfiler
         {
             if (src == null)
                 return;
-            
-            if (src._groups.Count > _groups.Capacity)
-                throw new ArgumentOutOfRangeException($"Groups capacity {_groups.Capacity} is smaller than required to inherit {src._groups.Count} them.");
-            if (src._markers.Count > _markers.Capacity)
-                throw new ArgumentOutOfRangeException($"Markers capacity {_markers.Capacity} is smaller than required to inherit {src._markers.Count} them.");
 
             for (var id = 1; id < src._groups.Count; id++)
             {

@@ -175,6 +175,26 @@ namespace NanoProfiler
         }
 
         /// <summary>
+        /// Emits a point in time event with a timestamp to the message pipe
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EmitEvent(uint markerId, ref TypedAttribute param1, ref TypedAttribute param2, ref TypedAttribute param3)
+        {
+            if (!Enabled)
+                return;
+
+            Protocol.Event message = new ()
+            {
+                MarkerId = markerId,
+                Timestamp = Stopwatch.GetTimestamp(),
+                Param1 = param1,
+                Param2 = param2,
+                Param3 = param3
+            };
+            Write(Protocol.MessageType.Event, ref message);
+        }
+
+        /// <summary>
         /// Emits counter sample value
         /// </summary>
         public void EmitCounterSample(uint markerId, float value)

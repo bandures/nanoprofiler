@@ -25,7 +25,8 @@ namespace NanoProfiler
         IProcessor<Protocol.ScopeBegin>, 
         IProcessor<Protocol.ScopeEnd>,
         IProcessor<Protocol.ActivityBegin>,
-        IProcessor<Protocol.ActivityEnd>
+        IProcessor<Protocol.ActivityEnd>,
+        IProcessor<Protocol.Event>
     {
         private static readonly Encoding UTF8NoBom = new UTF8Encoding(false);
         private static readonly char[] WriteEscapedJsonBuffer = new char[4096];
@@ -96,6 +97,12 @@ namespace NanoProfiler
             if (!_generatedIds.Remove(msg.UniqueId, out var name))
                 return;
             WriteAsyncEvent(_output, 0, (uint)msg.UniqueId, name, "e", new TimeSpan(msg.Timestamp));
+        }
+
+        public void HandleMessage(int threadId, ref Protocol.Event msg)
+        {
+            string name = MakeUniqueId(_markers[msg.MarkerId], msg.Param1, msg.Param2, msg.Param3);
+            WriteEvent(_output, 0, threadId, name, "i", new TimeSpan(msg.Timestamp));
         }
 
         private static void WriteHeader(TextWriter output)
