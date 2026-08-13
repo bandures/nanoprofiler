@@ -70,6 +70,32 @@ namespace NanoProfiler.Tests
             Assert.IsTrue(ValidateJsonHasMarker(fileName, markerName));
         }
         
+        [Test]
+        public static void ChromeTrace_WithEvent_SendsInstantEvent()
+        {
+            var eventName = "TEST_EVENT";
+            var fileName = Path.GetTempFileName();
+
+            var testProcessor = new ChromeTraceProcessor(new ChromeTraceOptions() { FileName = fileName });
+            var settings = new ProfilerSettingsBuilder()
+                .AddProcessor(_ => testProcessor)
+                .Build();
+
+            using (var profiler = new Profiler(settings))
+            {
+                var evt = profiler.CreateEvent(eventName);
+
+                profiler.Start();
+                evt.Record();
+                evt.Record(1234);
+                profiler.Stop();
+            }
+
+            Assert.IsTrue(File.Exists(fileName));
+            Assert.IsTrue(ValidateJsonHasMarker(fileName, eventName));
+            Assert.IsTrue(ValidateJsonHasMarker(fileName, $"{eventName}[1234]"));
+        }
+
         private static void EmitStart(ChromeTraceProcessor processor)
         {
             var msg = new Protocol.CaptureStart();

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 using NanoProfiler;
@@ -105,6 +105,79 @@ public static class PerfettoProcessorTests
     }
 
     [Test, Timeout(1000)]
+    public static void PerfettoProcessor_UsingEvent_NameInternalized()
+    {
+        const int iterationCount = 1000;
+
+        var fileName = Path.GetTempFileName();
+
+        var testProcessor = new PerfettoProcessor(new PerfettoProcessorSettings() { FileName = fileName });
+        var settings = new ProfilerSettingsBuilder()
+            .AddProcessor(_ => testProcessor)
+            .Build();
+
+        var longName = GenerateRandomString(100);
+        using (var profiler = new Profiler(settings))
+        {
+            var evt = profiler.CreateEvent(longName);
+
+            profiler.Start();
+            for (var i = 0; i < iterationCount; i++)
+                evt.Record();
+            profiler.Stop();
+        }
+
+        var fileInfo = new FileInfo(fileName);
+        Assert.IsTrue(File.Exists(fileName));
+        Assert.NotZero(fileInfo.Length);
+        Assert.LessOrEqual(fileInfo.Length, 70 * 1024);
+        Assert.AreEqual(1, CountInternedEventNames(fileName));
+    }
+
+    [Test, Timeout(2000)]
+    public static void PerfettoProcessor_UsingEventWithParameters_NameInternalized()
+    {
+        const int iterationCount = 1000;
+
+        var fileName = Path.GetTempFileName();
+
+        var testProcessor = new PerfettoProcessor(new PerfettoProcessorSettings() { FileName = fileName });
+        var settings = new ProfilerSettingsBuilder()
+            .AddProcessor(_ => testProcessor)
+            .Build();
+
+        var longName = GenerateRandomString(100);
+        using (var profiler = new Profiler(settings))
+        {
+            var evt = profiler.CreateEvent(longName);
+
+            profiler.Start();
+            for (var i = 0; i < iterationCount; i++)
+                evt.Record(1234, "StringParam");
+            profiler.Stop();
+        }
+
+        Assert.IsTrue(File.Exists(fileName));
+        Assert.NotZero(new FileInfo(fileName).Length);
+        // Parameters are a part of the name, but repeated values must reuse the same interned name
+        Assert.AreEqual(1, CountInternedEventNames(fileName));
+    }
+
+    private static int CountInternedEventNames(string fileName)
+    {
+        var trace = Perfetto.Protos.Trace.Parser.ParseFrom(File.ReadAllBytes(fileName));
+
+        var count = 0;
+        foreach (var packet in trace.Packet)
+        {
+            if (packet.InternedData != null)
+                count += packet.InternedData.EventNames.Count;
+        }
+
+        return count;
+    }
+
+    [Test, Timeout(1000)]
     public static void PerfettoProcessor_WithRestart_ValidStream()
     {
         var fileName = Path.GetTempFileName();
@@ -133,13 +206,17 @@ public static class PerfettoProcessorTests
         var counter = profiler.CreateCounter("counter");
         var activity = profiler.CreateActivity("activity");
         var scopeInGroup = group.CreateScope("scopeInGroup");
-            
+        var evt = profiler.CreateEvent("event");
+        var eventInGroup = group.CreateEvent("eventInGroup");
+
         profiler.Start();
         {
             counter.Sample(2.0f);
             using var _1 = scope.Auto();
             using var _2 = activity.Auto();
             using var _3 = scopeInGroup.Auto();
+            evt.Record();
+            eventInGroup.Record(1, "param");
         }
         profiler.Stop();
     }

@@ -147,6 +147,33 @@ namespace NanoProfiler.Tests
         }
 
         [Test]
+        public void Event_WithGroup_PresentInStream()
+        {
+            using var tempFile = new TestHelper.TempFile();
+            var processor = TestHelper.SetupPerfettoProcessor(tempFile.TracePath);
+            var settings = new ProfilerSettingsBuilder()
+                .AddProcessor(_ => processor)
+                .EnableGroups("MyGroup")
+                .Build();
+
+            using (var profiler = new Profiler(settings))
+            {
+                var group = profiler.CreateGroup("MyGroup");
+                var groupEvent = group.CreateEvent("GroupEvent");
+
+                profiler.Start();
+
+                groupEvent.Record();
+                TestHelper.FakeWork();
+                groupEvent.Record(42, "state");
+
+                profiler.Stop();
+            }
+
+            TestHelper.RunPythonVerification("Event_WithGroup_PresentInStream.py", tempFile.TracePath);
+        }
+
+        [Test]
         public void Activity_WithStaticDeclaration_PresentInStream()
         {
             using var tempFile = new TestHelper.TempFile();

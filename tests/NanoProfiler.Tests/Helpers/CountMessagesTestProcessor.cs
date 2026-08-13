@@ -12,7 +12,8 @@ namespace NanoProfiler.Tests.Helpers
         IProcessor<Protocol.ScopeEnd>,
         IProcessor<Protocol.CounterSample>,
         IProcessor<Protocol.ActivityBegin>,
-        IProcessor<Protocol.ActivityEnd>
+        IProcessor<Protocol.ActivityEnd>,
+        IProcessor<Protocol.Event>
     {
         public int CaptureStart;
         public int CaptureStop;
@@ -27,7 +28,9 @@ namespace NanoProfiler.Tests.Helpers
             
         public int ActivityBeginCount;
         public int ActivityEndCount;
-            
+
+        public int EventCount;
+
         public void HandleMessage(int threadId, ref Protocol.CaptureStart msg) => CaptureStart++;
         public void HandleMessage(int threadId, ref Protocol.CaptureStop msg) => CaptureStop++;
             
@@ -40,6 +43,8 @@ namespace NanoProfiler.Tests.Helpers
             
         public void HandleMessage(int threadId, ref Protocol.ActivityBegin msg) => ActivityBeginCount++;
         public void HandleMessage(int threadId, ref Protocol.ActivityEnd msg) => ActivityEndCount++;
+
+        public void HandleMessage(int threadId, ref Protocol.Event msg) => EventCount++;
 
         public void HandleMessage(int threadId, ref Protocol.RegisterGroup msg) => GroupInfoCount++;
 

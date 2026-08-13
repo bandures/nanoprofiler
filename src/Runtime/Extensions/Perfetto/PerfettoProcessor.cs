@@ -280,13 +280,24 @@ namespace NanoProfiler
             if (!ShouldEmit(markerInfo.IsCritical))
                 return;
 
-            var name = MakeUniqueId(markerInfo.Name, msg.Param1, msg.Param2, msg.Param3, _stringBuilder);
-            var internId = RegisterEventName(name, out var internedData);
+            var hasParams = msg.Param1.ParamType != TypedAttribute.ValueType.None
+                            || msg.Param2.ParamType != TypedAttribute.ValueType.None
+                            || msg.Param3.ParamType != TypedAttribute.ValueType.None;
 
             var trackEvent = _fileWriter.GetTrackEvent();
             trackEvent.Type = TrackEvent.Types.Type.Instant;
-            trackEvent.NameIid = internId;
             trackEvent.TrackUuid = markerInfo.GroupTrackId;
+
+            InternedData? internedData;
+            if (hasParams)
+            {
+                var name = MakeUniqueId(markerInfo.Name, msg.Param1, msg.Param2, msg.Param3, _stringBuilder);
+                trackEvent.NameIid = RegisterEventName(name, out internedData);
+            }
+            else
+            {
+                trackEvent.NameIid = ResolveInternId(msg.MarkerId, markerInfo, out internedData);
+            }
 
             _fileWriter.AddTimestampEvent(trackEvent, msg.Timestamp, internedData, true);
         }

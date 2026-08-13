@@ -65,6 +65,23 @@ def verify_counter_track_exists(tp, name):
     check(len(rows) > 0, f"Counter track '{name}' not found")
     print(f"Found counter track: {rows[0].name}")
 
+def verify_instant_on_track(tp, name, track_name):
+    print(f"Verifying instant '{name}' on track '{track_name}'...")
+    query = f'''
+        SELECT s.dur
+        FROM slice s
+        JOIN track t ON s.track_id = t.id
+        WHERE s.name = "{name}" AND t.name = "{track_name}"
+    '''
+    rows = list(tp.query(query))
+    if len(rows) == 0:
+        all_rows = list(tp.query('SELECT s.name, s.dur, t.name AS tname FROM slice s JOIN track t ON s.track_id = t.id'))
+        print(f"All slices: {[(r.name, r.dur, r.tname) for r in all_rows]}")
+    check(len(rows) > 0, f"Instant '{name}' not found on track '{track_name}'")
+    for row in rows:
+        check(row.dur == 0, f"Instant '{name}' must have no duration (dur={row.dur})")
+    print(f"Found {len(rows)} instant(s) '{name}' on track '{track_name}'")
+
 def verify_track_exists(tp, name):
     print(f"Verifying track '{name}'...")
     query = f'SELECT name FROM track WHERE name = "{name}"'

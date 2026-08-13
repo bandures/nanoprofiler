@@ -117,7 +117,8 @@ namespace NanoProfiler.Tests
                 profiler.CreateScope($"scope-{i}");
         }
 
-        public void Recreate_WithSmallerConfiguredCapacity_KeepsExistingInstrumentsUsable()
+        [Test]
+        public static void Recreate_WithSmallerConfiguredCapacity_KeepsExistingInstrumentsUsable()
         {
             using var previous = new Profiler(new ProfilerSettingsBuilder().WithGroupsCapacity(64).Build());
 
